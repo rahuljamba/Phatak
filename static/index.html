@@ -3,437 +3,444 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Phatak Punjab • Live Railway Level Crossing Intelligence</title>
-  <meta name="description" content="Real-time railway crossing intelligence and WebSocket stream for Punjab. Tracking 1,828+ level crossings and 1,005+ railway track segments across 23 districts.">
+  <title>Phatak Punjab • Mobile App & Real-Time Railway Intelligence</title>
+  <meta name="description" content="Simple, clean, real-time railway level crossing status and train tracking for Punjab. 1,828+ level crossings across 23 districts.">
   
-  <!-- Fonts -->
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="/static/app-icon.png">
+
+  <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
   
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
-      darkMode: 'class',
       theme: {
         extend: {
           fontFamily: {
-            sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+            sans: ['"Plus Jakarta Sans"', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
             mono: ['"JetBrains Mono"', 'monospace'],
           },
           colors: {
             brand: {
-              emerald: '#10B981',
-              amber: '#F59E0B',
-              ruby: '#EF4444',
-              indigo: '#6366F1',
-              dark: '#0A0F1D',
-              surface: '#111827',
-              card: '#161F36',
-              border: 'rgba(255, 255, 255, 0.08)',
+              blue: '#2563EB',
+              indigo: '#4F46E5',
+              green: '#16A34A',
+              amber: '#D97706',
+              red: '#DC2626',
+              bg: '#FFFFFF',
+              surface: '#F8FAFC',
+              border: '#E2E8F0',
+              text: '#0F172A',
+              muted: '#64748B',
             }
           }
         }
       }
     }
   </script>
-  
+
   <style>
     body {
-      background-color: #0A0F1D;
-      color: #F3F4F6;
-      font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+      background-color: #FFFFFF;
+      color: #0F172A;
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      -webkit-font-smoothing: antialiased;
     }
-    .glow-emerald {
-      box-shadow: 0 0 35px -5px rgba(16, 185, 129, 0.25);
+    
+    /* Device Frame Styling */
+    .iphone-frame {
+      width: 320px;
+      height: 660px;
+      background: #000000;
+      border-radius: 46px;
+      padding: 10px;
+      box-shadow: 0 25px 60px -15px rgba(15, 23, 42, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.08);
+      position: relative;
     }
-    .glow-amber {
-      box-shadow: 0 0 35px -5px rgba(245, 158, 11, 0.25);
+    @media (min-width: 640px) {
+      .iphone-frame {
+        width: 340px;
+        height: 700px;
+        border-radius: 50px;
+        padding: 11px;
+      }
     }
-    .glow-ruby {
-      box-shadow: 0 0 35px -5px rgba(239, 68, 68, 0.25);
+    .iphone-screen {
+      width: 100%;
+      height: 100%;
+      background: #FAF8F5; /* Matches iOS app parchmentColor */
+      border-radius: 38px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
     }
-    .glow-indigo {
-      box-shadow: 0 0 45px -8px rgba(99, 102, 241, 0.35);
+    @media (min-width: 640px) {
+      .iphone-screen {
+        border-radius: 40px;
+      }
     }
-    .glass-card {
-      background: rgba(22, 31, 54, 0.7);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-    }
-    .glass-card:hover {
-      border-color: rgba(99, 102, 241, 0.35);
-    }
-    .radial-bg {
-      background: radial-gradient(circle at 50% 0%, rgba(99, 102, 241, 0.15) 0%, rgba(10, 15, 29, 0) 70%);
-    }
-    /* Pulse animations */
-    @keyframes subtlePulse {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.75; transform: scale(1.03); }
-    }
-    .animate-subtle-pulse {
-      animation: subtlePulse 2.5s infinite ease-in-out;
+    .dynamic-island {
+      width: 90px;
+      height: 24px;
+      background: #000000;
+      border-radius: 20px;
+      position: absolute;
+      top: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 40;
     }
   </style>
 </head>
-<body class="radial-bg min-h-screen selection:bg-brand-indigo selection:text-white">
+<body class="bg-white min-h-screen text-slate-900 selection:bg-blue-600 selection:text-white">
 
   <!-- ========================================================================= -->
-  <!-- Top Navigation Bar                                                        -->
+  <!-- Clean White Navigation Bar                                                -->
   <!-- ========================================================================= -->
-  <header class="sticky top-0 z-50 backdrop-blur-xl bg-brand-dark/80 border-b border-white/5">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-      <!-- Logo -->
+  <header class="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-100">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+      <!-- App Brand -->
       <a href="/" class="flex items-center space-x-3 group">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-indigo to-brand-emerald flex items-center justify-center shadow-lg shadow-indigo-500/20 group-hover:scale-105 transition-transform">
-          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
-          </svg>
-        </div>
+        <img src="/static/app-icon.png" alt="Phatak Punjab" class="w-9 h-9 rounded-xl shadow-sm border border-slate-200 object-cover" onerror="this.style.display='none'">
         <div>
-          <span class="text-lg font-extrabold tracking-tight bg-gradient-to-r from-white via-gray-200 to-indigo-300 bg-clip-text text-transparent">Phatak Punjab</span>
-          <span class="hidden sm:inline-block ml-2 px-2 py-0.5 text-[10px] font-bold font-mono tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full">v1.0 LIVE</span>
+          <span class="text-base font-extrabold tracking-tight text-slate-900">Phatak Punjab</span>
+          <span class="hidden sm:inline-block ml-2 px-2 py-0.5 text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full">iOS App</span>
         </div>
       </a>
 
       <!-- Quick Nav Links -->
-      <nav class="hidden md:flex items-center space-x-6 text-sm font-medium text-gray-300">
-        <a href="#crossings" class="hover:text-white transition-colors">Crossings Preview</a>
-        <a href="#websocket" class="hover:text-white transition-colors">WebSocket Console</a>
-        <a href="/apis" class="hover:text-brand-indigo transition-colors flex items-center space-x-1.5">
-          <span>/apis</span>
-          <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-        </a>
-        <a href="/health" class="hover:text-emerald-400 transition-colors flex items-center space-x-1.5">
-          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-          <span>/health</span>
-        </a>
-      </nav>
-
-      <!-- Action Button -->
-      <div class="flex items-center space-x-3">
-        <a href="#websocket" class="inline-flex items-center space-x-2 px-4 py-2 text-xs sm:text-sm font-bold rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white shadow-lg shadow-indigo-500/25 transition-all">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-          <span>Live WS Stream</span>
+      <div class="flex items-center space-x-3 sm:space-x-5 text-xs sm:text-sm font-semibold">
+        <a href="#preview" class="text-slate-600 hover:text-slate-900">App Preview</a>
+        <a href="#features" class="text-slate-600 hover:text-slate-900">Features</a>
+        <a href="/apis" class="text-blue-600 hover:text-blue-700 font-mono">/apis</a>
+        <a href="/health" class="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center space-x-1">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span>Health</span>
         </a>
       </div>
     </div>
   </header>
 
   <!-- ========================================================================= -->
-  <!-- Hero Section                                                              -->
+  <!-- Hero Section: Single-Scroll Presentation                                  -->
   <!-- ========================================================================= -->
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-20">
-    <div class="text-center max-w-4xl mx-auto">
+  <main class="max-w-6xl mx-auto px-4 sm:px-6 pt-10 sm:pt-14 pb-20">
+    
+    <!-- Top Intro Badge -->
+    <div class="text-center mb-6">
+      <span class="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold border border-slate-200">
+        <span>🚂</span>
+        <span>Real-Time Railway Crossing Intelligence for Punjab</span>
+      </span>
+    </div>
+
+    <!-- Main Grid: Info (Left) + Phone Screen Preview (Right) -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center">
       
-      <!-- Top Pill -->
-      <div class="inline-flex items-center space-x-2.5 px-3.5 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs sm:text-sm font-semibold mb-6">
-        <span class="flex h-2 w-2 relative">
-          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-          <span class="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
-        </span>
-        <span>WebSocket-Powered Real-Time Punjab Railway Telemetry</span>
+      <!-- Left Column: Simple & Clear Copy -->
+      <div class="lg:col-span-7 text-center lg:text-left">
+        
+        <h1 class="text-3xl sm:text-5xl font-extrabold text-slate-900 tracking-tight leading-[1.15] mb-5">
+          Punjab Railway Crossings. <br>
+          <span class="text-blue-600">Live on your mobile.</span>
+        </h1>
+
+        <p class="text-base sm:text-lg text-slate-600 leading-relaxed mb-8 max-w-xl mx-auto lg:mx-0">
+          Check live phatak status, approaching trains, and boom barrier closures before you leave home. Zero push notification spam — clean, instant live data across all 23 Punjab districts.
+        </p>
+
+        <!-- Key Highlights List -->
+        <div class="space-y-3 mb-8 text-left max-w-md mx-auto lg:mx-0">
+          <div class="flex items-start space-x-3 text-sm text-slate-700">
+            <span class="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">✓</span>
+            <span><strong>1,828+ Level Crossings</strong> & 1,005+ railway track segments mapped.</span>
+          </div>
+          <div class="flex items-start space-x-3 text-sm text-slate-700">
+            <span class="w-5 h-5 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">✓</span>
+            <span><strong>Live Trains Tab</strong>: 12-hour arrival/departure times & station ETA countdown.</span>
+          </div>
+          <div class="flex items-start space-x-3 text-sm text-slate-700">
+            <span class="w-5 h-5 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">✓</span>
+            <span><strong>Instant Search</strong> across 333 Punjab cities (Dhariwal, Abohar, Dhuri, Mohali, etc.).</span>
+          </div>
+          <div class="flex items-start space-x-3 text-sm text-slate-700">
+            <span class="w-5 h-5 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">✓</span>
+            <span><strong>Built-in Dev Mode</strong>: Easily test any city with simulated GPS location.</span>
+          </div>
+        </div>
+
+        <!-- Action Links -->
+        <div class="flex flex-wrap items-center justify-center lg:justify-start gap-3">
+          <a href="/apis" class="px-5 py-2.5 rounded-xl text-sm font-bold bg-slate-900 hover:bg-slate-800 text-white shadow-sm flex items-center space-x-2 transition-all">
+            <span class="font-mono text-blue-400 font-bold">{ }</span>
+            <span>Inspect /apis Specification</span>
+          </a>
+          <a href="/health" class="px-4 py-2.5 rounded-xl text-sm font-semibold bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 transition-all">
+            System Health Check
+          </a>
+          <a href="https://github.com/rahuljamba/Phatak" target="_blank" class="px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:text-slate-900 flex items-center space-x-1.5 transition-all">
+            <span>GitHub Repository</span>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+          </a>
+        </div>
+
       </div>
 
-      <!-- Main Headline -->
-      <h1 class="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-white mb-6 leading-tight">
-        Punjab Railway Crossings. <br class="hidden sm:inline">
-        <span class="bg-gradient-to-r from-emerald-400 via-amber-300 to-indigo-400 bg-clip-text text-transparent">Live. Accurate. Pushless.</span>
-      </h1>
+      <!-- Right Column: Mobile App Home Screen Mockup / Screenshot -->
+      <div id="preview" class="lg:col-span-5 flex justify-center">
+        
+        <div class="iphone-frame">
+          <!-- Dynamic Island -->
+          <div class="dynamic-island"></div>
 
-      <!-- Description -->
-      <p class="text-base sm:text-xl text-gray-300 font-normal leading-relaxed mb-10 max-w-2xl mx-auto">
-        Complete real-time intelligence for all level crossings across Punjab. Built for fast WebSocket streaming — 
-        <strong class="text-white font-semibold">zero battery-draining push notifications needed</strong>.
-      </p>
+          <!-- Inside Screen (Phatak Punjab iOS App UI) -->
+          <div class="iphone-screen">
+            
+            <!-- iOS Status Bar -->
+            <div class="h-10 pt-2 px-6 flex items-center justify-between text-[11px] font-bold text-slate-800 select-none">
+              <span>9:41</span>
+              <div class="flex items-center space-x-1.5">
+                <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L12 22l7.03-4.39C20.26 16.07 21 14.12 21 12c0-4.97-4.03-9-9-9z"/></svg>
+                <span class="text-[10px]">5G</span>
+                <div class="w-5 h-2.5 border border-slate-700 rounded-sm p-0.5 flex items-center"><div class="w-full h-full bg-slate-800 rounded-2xs"></div></div>
+              </div>
+            </div>
 
-      <!-- CTA Buttons -->
-      <div class="flex flex-wrap items-center justify-center gap-4 mb-16">
-        <a href="#websocket" class="px-6 py-3.5 rounded-xl font-bold text-sm bg-indigo-600 hover:bg-indigo-500 text-white shadow-xl shadow-indigo-600/30 flex items-center space-x-2 transition-all">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-          <span>Connect to /ws/phatak</span>
-        </a>
-        <a href="/apis" target="_blank" class="px-6 py-3.5 rounded-xl font-bold text-sm bg-white/5 hover:bg-white/10 text-gray-200 border border-white/10 flex items-center space-x-2 transition-all">
-          <span class="font-mono text-indigo-400 font-bold">{ }</span>
-          <span>View /apis JSON Spec</span>
-        </a>
-        <a href="/health" target="_blank" class="px-5 py-3.5 rounded-xl font-bold text-sm bg-white/5 hover:bg-white/10 text-emerald-300 border border-white/10 flex items-center space-x-2 transition-all">
-          <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-          <span>Health Probe</span>
-        </a>
+            <!-- App Top Header (ContentView.swift headerView) -->
+            <div class="px-4 pt-2 pb-2.5 border-b border-slate-200/60 bg-white/70 backdrop-blur-sm">
+              <div class="flex items-center justify-between">
+                <div>
+                  <div class="flex items-center space-x-1.5">
+                    <span class="text-base font-extrabold tracking-tight text-slate-900">Phatak Punjab</span>
+                    <span class="px-1.5 py-0.2 text-[8.5px] font-mono font-black bg-orange-100 text-orange-700 rounded">DEV</span>
+                  </div>
+                  <div class="flex items-center space-x-1 text-[11.5px] font-semibold text-slate-600 mt-0.5">
+                    <svg class="w-3 h-3 text-blue-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2h-3a1 1 0 01-1-1v-2a1 1 0 00-1-1H9a1 1 0 00-1 1v2a1 1 0 01-1 1H4a1 1 0 110-2V4zm3 1h2v2H7V5zm2 4H7v2h2V9zm2-4h2v2h-2V5zm2 4h-2v2h2V9z" clip-rule="evenodd"/></svg>
+                    <span>Dhariwal</span>
+                    <svg class="w-2.5 h-2.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>
+                  </div>
+                </div>
+
+                <div class="flex items-center space-x-1.5">
+                  <span class="px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-blue-50 text-blue-700 border border-blue-200 flex items-center space-x-1">
+                    <svg class="w-2.5 h-2.5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    <span>Live</span>
+                  </span>
+                  <span class="px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-white text-slate-700 border border-slate-300">
+                    5 found
+                  </span>
+                </div>
+              </div>
+
+              <!-- Search Bar -->
+              <div class="mt-2 flex items-center px-2.5 py-1.5 bg-white rounded-lg border border-slate-200 text-[11px] text-slate-400">
+                <svg class="w-3 h-3 text-slate-400 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                <span>Search Phatak, Road, or City...</span>
+              </div>
+
+              <!-- Filter Chips -->
+              <div class="flex space-x-1 mt-2 text-[10px] font-bold">
+                <span class="px-2 py-0.5 rounded-full bg-slate-900 text-white">All (5)</span>
+                <span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">Open (3)</span>
+                <span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">Approaching (1)</span>
+                <span class="px-2 py-0.5 rounded-full bg-red-100 text-red-800">Closed (1)</span>
+              </div>
+            </div>
+
+            <!-- Scrollable Content of Phataks -->
+            <div class="flex-1 overflow-y-auto px-3 py-2 space-y-2 text-left">
+              
+              <!-- CARD 1: OPEN (Dhariwal Station / GT Road) -->
+              <div class="bg-white rounded-xl p-2.5 border border-slate-200/80 shadow-2xs">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-[9.5px] font-mono font-bold px-1.5 py-0.2 bg-slate-900 text-white rounded">LC B-39</span>
+                  <span class="px-1.5 py-0.5 text-[9px] font-bold bg-emerald-100 text-emerald-700 rounded-full flex items-center space-x-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    <span>OPEN</span>
+                  </span>
+                </div>
+                <div class="text-[12px] font-bold text-slate-900 leading-snug">Dhariwal Station / GT Road</div>
+                <div class="text-[10px] text-slate-500 mt-0.5 flex items-center justify-between">
+                  <span>DHW Station • Gurdaspur</span>
+                  <span class="font-semibold text-slate-700">0.4 km away</span>
+                </div>
+                <div class="mt-1.5 pt-1.5 border-t border-slate-100 flex items-center justify-between text-[9.5px]">
+                  <span class="text-slate-600">Verified open • Normal traffic</span>
+                  <span class="text-blue-600 font-semibold font-mono">Next: ~45m</span>
+                </div>
+              </div>
+
+              <!-- CARD 2: CLOSING SOON (Dhariwal Canal) -->
+              <div class="bg-white rounded-xl p-2.5 border border-amber-300 shadow-2xs">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-[9.5px] font-mono font-bold px-1.5 py-0.2 bg-slate-900 text-white rounded">LC B-41</span>
+                  <span class="px-1.5 py-0.5 text-[9px] font-bold bg-amber-100 text-amber-800 rounded-full flex items-center space-x-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping"></span>
+                    <span>CLOSING SOON</span>
+                  </span>
+                </div>
+                <div class="text-[12px] font-bold text-slate-900 leading-snug">Dhariwal Canal / Mission Link</div>
+                <div class="text-[10px] text-slate-500 mt-0.5 flex items-center justify-between">
+                  <span>DHW Station • Gurdaspur</span>
+                  <span class="font-semibold text-slate-700">0.7 km away</span>
+                </div>
+                <div class="mt-1.5 pt-1.5 border-t border-slate-100 flex items-center justify-between text-[9.5px]">
+                  <span class="text-amber-700 font-semibold">Train approaching (~2.4 km)</span>
+                  <span class="text-amber-800 font-bold font-mono">ETA 3m 40s</span>
+                </div>
+              </div>
+
+              <!-- CARD 3: OPEN (Dhariwal Woollen Mill) -->
+              <div class="bg-white rounded-xl p-2.5 border border-slate-200/80 shadow-2xs">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-[9.5px] font-mono font-bold px-1.5 py-0.2 bg-slate-900 text-white rounded">LC B-40</span>
+                  <span class="px-1.5 py-0.5 text-[9px] font-bold bg-emerald-100 text-emerald-700 rounded-full flex items-center space-x-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    <span>OPEN</span>
+                  </span>
+                </div>
+                <div class="text-[12px] font-bold text-slate-900 leading-snug">Dhariwal Woollen Mill Phatak</div>
+                <div class="text-[10px] text-slate-500 mt-0.5 flex items-center justify-between">
+                  <span>DHW Station • Gurdaspur</span>
+                  <span class="font-semibold text-slate-700">0.9 km away</span>
+                </div>
+                <div class="mt-1.5 pt-1.5 border-t border-slate-100 flex items-center justify-between text-[9.5px]">
+                  <span class="text-slate-600">Normal road traffic</span>
+                  <span class="text-emerald-700 font-semibold font-mono">Free Flow</span>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Floating Map Round Button inside Screen -->
+            <div class="absolute bottom-16 right-4 w-10 h-10 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-lg shadow-black/20">
+              <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M12 1.586l-4 4v12.828l4-4V1.586zM3.707 3.293A1 1 0 002 4v10a1 1 0 00.293.707L6 18.414V5.586L3.707 3.293zM14 5.586v12.828l3.707 2.293A1 1 0 0019 20V10a1 1 0 00-.293-.707L14 5.586z" clip-rule="evenodd"/></svg>
+            </div>
+
+            <!-- Bottom Navigation Bar (Explore, Trains, Saved, Guide) -->
+            <div class="h-14 bg-white border-t border-slate-200 px-3 flex items-center justify-around text-[9px] font-bold text-slate-500 shrink-0 select-none">
+              <div class="flex flex-col items-center text-blue-600">
+                <svg class="w-4 h-4 mb-0.5" fill="currentColor" viewBox="0 0 20 20"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"/></svg>
+                <span>Explore</span>
+              </div>
+              <div class="flex flex-col items-center text-indigo-600">
+                <svg class="w-4 h-4 mb-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M4 15.5C4 17.43 5.57 19 7.5 19L6 20.5v.5h12v-.5L16.5 19c1.93 0 3.5-1.57 3.5-3.5V5c0-3.5-3.58-4-8-4s-8 .5-8 4v10.5zm8 1.5c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm6-7H6V5h12v5z"/></svg>
+                <span>Trains</span>
+              </div>
+              <div class="flex flex-col items-center">
+                <svg class="w-4 h-4 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
+                <span>Saved</span>
+              </div>
+              <div class="flex flex-col items-center">
+                <svg class="w-4 h-4 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <span>Guide</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
       </div>
 
-      <!-- Stats Grid -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
-        <div class="glass-card rounded-2xl p-5 text-left border border-white/5">
-          <div class="text-3xl font-extrabold text-white font-mono mb-1">1,828+</div>
-          <div class="text-xs font-semibold text-emerald-400 uppercase tracking-wider">Level Crossings</div>
-          <div class="text-xs text-gray-400 mt-1">Complete Punjab GIS dataset</div>
+    </div>
+
+    <!-- ======================================================================= -->
+    <!-- Metrics Bar                                                             -->
+    <!-- ======================================================================= -->
+    <div class="mt-20 pt-10 border-t border-slate-100">
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+          <div class="text-3xl font-extrabold text-slate-900 font-mono">1,828+</div>
+          <div class="text-xs font-semibold text-slate-600 mt-1">Level Crossings</div>
         </div>
-        <div class="glass-card rounded-2xl p-5 text-left border border-white/5">
-          <div class="text-3xl font-extrabold text-white font-mono mb-1">1,005+</div>
-          <div class="text-xs font-semibold text-indigo-400 uppercase tracking-wider">Track Segments</div>
-          <div class="text-xs text-gray-400 mt-1">Northern Railway network</div>
+        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+          <div class="text-3xl font-extrabold text-blue-600 font-mono">1,005+</div>
+          <div class="text-xs font-semibold text-slate-600 mt-1">Railway Track Lines</div>
         </div>
-        <div class="glass-card rounded-2xl p-5 text-left border border-white/5">
-          <div class="text-3xl font-extrabold text-white font-mono mb-1">23</div>
-          <div class="text-xs font-semibold text-amber-400 uppercase tracking-wider">Punjab Districts</div>
-          <div class="text-xs text-gray-400 mt-1">333+ towns & cities</div>
+        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+          <div class="text-3xl font-extrabold text-indigo-600 font-mono">23</div>
+          <div class="text-xs font-semibold text-slate-600 mt-1">Punjab Districts</div>
         </div>
-        <div class="glass-card rounded-2xl p-5 text-left border border-white/5">
-          <div class="text-3xl font-extrabold text-white font-mono mb-1">&lt; 50ms</div>
-          <div class="text-xs font-semibold text-purple-400 uppercase tracking-wider">Stream Latency</div>
-          <div class="text-xs text-gray-400 mt-1">Zero push notifications</div>
+        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+          <div class="text-3xl font-extrabold text-emerald-600 font-mono">100%</div>
+          <div class="text-xs font-semibold text-slate-600 mt-1">Real-Time WebSocket</div>
         </div>
       </div>
     </div>
 
     <!-- ======================================================================= -->
-    <!-- Sample Crossing Status Cards (Open, Closing Soon, Closed)               -->
+    <!-- Feature Section: Simple 3-Card Single Scroll                            -->
     <!-- ======================================================================= -->
-    <section id="crossings" class="pt-24">
-      <div class="flex flex-col md:flex-row md:items-end justify-between mb-10">
-        <div>
-          <div class="text-xs font-bold uppercase tracking-widest text-indigo-400 mb-2 font-mono">Live Telemetry Samples</div>
-          <h2 class="text-3xl font-extrabold text-white">Punjab Crossing Status Previews</h2>
-        </div>
-        <p class="text-sm text-gray-400 max-w-md mt-2 md:mt-0">
-          Sample live status feeds as streamed through our persistent WebSocket connection for drivers, commuters, and emergency fleets.
+    <section id="features" class="mt-20">
+      <div class="text-center max-w-2xl mx-auto mb-12">
+        <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900">Designed for everyday Punjab commuters</h2>
+        <p class="text-sm text-slate-600 mt-2">
+          From Dhariwal and Abohar to Ludhiana and Amritsar, navigate railway gates with confidence.
         </p>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-
-        <!-- CARD 1: OPEN (🟢) -->
-        <div class="glass-card rounded-2xl p-6 glow-emerald relative overflow-hidden transition-all duration-300 hover:-translate-y-1">
-          <div class="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none"></div>
-          
-          <div class="flex items-center justify-between mb-4">
-            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold font-mono bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-              <span class="w-2 h-2 rounded-full bg-emerald-400 mr-2 animate-pulse"></span>
-              OPEN • CLEAR
-            </span>
-            <span class="text-xs font-mono text-gray-400">LC No. B-39</span>
-          </div>
-
-          <h3 class="text-xl font-bold text-white mb-1">Dhariwal Station / GT Road</h3>
-          <p class="text-xs text-gray-400 mb-5 flex items-center space-x-1.5">
-            <svg class="w-3.5 h-3.5 text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/></svg>
-            <span>Dhariwal, Gurdaspur Dist • DHW Station</span>
-          </p>
-
-          <div class="space-y-3 py-4 border-y border-white/5 text-xs">
-            <div class="flex justify-between items-center">
-              <span class="text-gray-400">Road Traffic</span>
-              <span class="font-semibold text-emerald-300">Free Flow (1.0x Delay)</span>
-            </div>
-            <div class="flex justify-between items-center">
-              <span class="text-gray-400">Next Approaching Train</span>
-              <span class="font-mono font-medium text-white">#14712 Intercity (in ~45m)</span>
-            </div>
-            <div class="flex justify-between items-center">
-              <span class="text-gray-400">Boom Barrier Status</span>
-              <span class="font-medium text-gray-200">Up & Locked</span>
-            </div>
-          </div>
-
-          <div class="mt-4 flex items-center justify-between text-xs pt-1">
-            <span class="text-gray-400">Accuracy: <strong class="text-white">94%</strong></span>
-            <span class="text-emerald-400 font-mono">Live Sync OK</span>
-          </div>
-        </div>
-
-        <!-- CARD 2: CLOSING SOON (🟠) -->
-        <div class="glass-card rounded-2xl p-6 glow-amber relative overflow-hidden transition-all duration-300 hover:-translate-y-1 border-amber-500/20">
-          <div class="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl pointer-events-none"></div>
-
-          <div class="flex items-center justify-between mb-4">
-            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold font-mono bg-amber-500/15 text-amber-400 border border-amber-500/30">
-              <span class="w-2 h-2 rounded-full bg-amber-400 mr-2 animate-ping"></span>
-              CLOSING SOON • 4 MINS
-            </span>
-            <span class="text-xs font-mono text-gray-400">LC No. A-14</span>
-          </div>
-
-          <h3 class="text-xl font-bold text-white mb-1">Abohar Bypass / Fazilka Link</h3>
-          <p class="text-xs text-gray-400 mb-5 flex items-center space-x-1.5">
-            <svg class="w-3.5 h-3.5 text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/></svg>
-            <span>Abohar, Fazilka Dist • ABS Station</span>
-          </p>
-
-          <div class="space-y-3 py-4 border-y border-white/5 text-xs">
-            <div class="flex justify-between items-center">
-              <span class="text-gray-400">Road Traffic</span>
-              <span class="font-semibold text-amber-300">Congestion Starting (2.1x)</span>
-            </div>
-            <div class="flex justify-between items-center">
-              <span class="text-gray-400">Approaching Train</span>
-              <span class="font-mono font-bold text-amber-400">#14711 Intercity (~2.4 km)</span>
-            </div>
-            <div class="flex justify-between items-center">
-              <span class="text-gray-400">Interlocking Gate</span>
-              <span class="font-medium text-amber-300">Sirens Active • Lowering</span>
-            </div>
-          </div>
-
-          <div class="mt-4 flex items-center justify-between text-xs pt-1">
-            <span class="text-gray-400">Accuracy: <strong class="text-white">98%</strong></span>
-            <span class="text-amber-400 font-mono">Imminent Crossing</span>
-          </div>
-        </div>
-
-        <!-- CARD 3: CLOSED (🔴) -->
-        <div class="glass-card rounded-2xl p-6 glow-ruby relative overflow-hidden transition-all duration-300 hover:-translate-y-1 border-ruby-500/20">
-          <div class="absolute top-0 right-0 w-32 h-32 bg-red-500/10 rounded-full blur-2xl pointer-events-none"></div>
-
-          <div class="flex items-center justify-between mb-4">
-            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold font-mono bg-red-500/15 text-red-400 border border-red-500/30">
-              <span class="w-2 h-2 rounded-full bg-red-500 mr-2"></span>
-              CLOSED • TRAIN PASSING
-            </span>
-            <span class="text-xs font-mono text-gray-400">LC No. C-52</span>
-          </div>
-
-          <h3 class="text-xl font-bold text-white mb-1">Ludhiana Model Town Canal</h3>
-          <p class="text-xs text-gray-400 mb-5 flex items-center space-x-1.5">
-            <svg class="w-3.5 h-3.5 text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/></svg>
-            <span>Ludhiana Central • LDH Station</span>
-          </p>
-
-          <div class="space-y-3 py-4 border-y border-white/5 text-xs">
-            <div class="flex justify-between items-center">
-              <span class="text-gray-400">Road Traffic</span>
-              <span class="font-semibold text-red-400">Halted at Barrier (3.4x)</span>
-            </div>
-            <div class="flex justify-between items-center">
-              <span class="text-gray-400">Occupying Train</span>
-              <span class="font-mono font-bold text-white">#12013 Shatabdi Express</span>
-            </div>
-            <div class="flex justify-between items-center">
-              <span class="text-gray-400">Est. Gate Clearance</span>
-              <span class="font-medium text-emerald-300">~1m 50s</span>
-            </div>
-          </div>
-
-          <div class="mt-4 flex items-center justify-between text-xs pt-1">
-            <span class="text-gray-400">Accuracy: <strong class="text-white">99%</strong></span>
-            <span class="text-red-400 font-mono">Track Block Occupied</span>
-          </div>
-        </div>
-
-      </div>
-    </section>
-
-    <!-- ======================================================================= -->
-    <!-- Interactive In-Browser WebSocket Console                                 -->
-    <!-- ======================================================================= -->
-    <section id="websocket" class="pt-24">
-      <div class="glass-card rounded-3xl p-6 sm:p-10 border border-indigo-500/20 glow-indigo">
         
-        <div class="flex flex-col lg:flex-row lg:items-center justify-between pb-8 border-b border-white/10 gap-6">
-          <div>
-            <div class="inline-flex items-center space-x-2 text-xs font-mono font-bold uppercase tracking-wider text-indigo-400 mb-2">
-              <span class="w-2 h-2 rounded-full bg-indigo-400"></span>
-              <span>Interactive In-Browser WebSocket Stream</span>
-            </div>
-            <h2 class="text-2xl sm:text-3xl font-extrabold text-white">Live WebSocket Client (/ws/phatak)</h2>
-            <p class="text-sm text-gray-400 mt-1 max-w-xl">
-              Connect directly to the FastAPI WebSocket server from this page and inspect live messages, subscriptions, and heartbeat pings.
-            </p>
+        <!-- Feature 1 -->
+        <div class="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs">
+          <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-lg mb-4">
+            📍
           </div>
-
-          <!-- Controls -->
-          <div class="flex flex-wrap items-center gap-3">
-            <button id="wsConnectBtn" onclick="toggleWebSocket()" class="px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/20 transition-all flex items-center space-x-2">
-              <span class="w-2 h-2 rounded-full bg-white"></span>
-              <span id="wsConnectBtnText">Connect WS</span>
-            </button>
-            <button onclick="sendWsPing()" class="px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-white/5 hover:bg-white/10 text-white border border-white/10 transition-all">
-              Send Ping
-            </button>
-            <button onclick="subscribeCity('Dhariwal')" class="px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-white/5 hover:bg-white/10 text-indigo-300 border border-indigo-500/20 transition-all">
-              Sub: Dhariwal
-            </button>
-            <button onclick="subscribeCity('Abohar')" class="px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-white/5 hover:bg-white/10 text-amber-300 border border-amber-500/20 transition-all">
-              Sub: Abohar
-            </button>
-            <button onclick="requestSample()" class="px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-white/5 hover:bg-white/10 text-emerald-300 border border-emerald-500/20 transition-all">
-              Sample Feed
-            </button>
-          </div>
+          <h3 class="text-base font-bold text-slate-900 mb-1.5">Nearest Phatak Sorting</h3>
+          <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+            GPS-based automatic detection sorts all nearby level crossings by exact kilometer distance, alerting you when a gate is lowering.
+          </p>
         </div>
 
-        <!-- Terminal Window -->
-        <div class="mt-6 rounded-2xl bg-[#070B14] border border-white/10 overflow-hidden font-mono text-xs shadow-2xl">
-          <!-- Terminal Header -->
-          <div class="px-4 py-3 bg-[#0D1322] border-b border-white/5 flex items-center justify-between">
-            <div class="flex items-center space-x-2">
-              <span class="w-3 h-3 rounded-full bg-red-500/80 inline-block"></span>
-              <span class="w-3 h-3 rounded-full bg-yellow-500/80 inline-block"></span>
-              <span class="w-3 h-3 rounded-full bg-green-500/80 inline-block"></span>
-              <span class="ml-2 text-gray-400 font-mono text-[11px]" id="wsEndpointLabel">ws://.../ws/phatak</span>
-            </div>
-            <div class="flex items-center space-x-3">
-              <span id="wsStatusBadge" class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-red-500/10 text-red-400 border border-red-500/20">
-                DISCONNECTED
-              </span>
-              <button onclick="clearConsole()" class="text-gray-400 hover:text-white text-[11px]">Clear</button>
-            </div>
+        <!-- Feature 2 -->
+        <div class="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs">
+          <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-lg mb-4">
+            🚆
           </div>
+          <h3 class="text-base font-bold text-slate-900 mb-1.5">12-Hour Trains Timetable</h3>
+          <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+            Dedicated Trains tab showing exact 12-hour arrival & departure times (`hh:mm:ss AM/PM`), date, platform numbers, and live countdowns.
+          </p>
+        </div>
 
-          <!-- Console Output -->
-          <div id="wsConsole" class="p-4 sm:p-5 h-72 sm:h-80 overflow-y-auto space-y-2 text-gray-300 leading-relaxed">
-            <div class="text-gray-400">// Phatak Punjab WebSocket client ready. Click "Connect WS" to start streaming.</div>
+        <!-- Feature 3 -->
+        <div class="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs">
+          <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-lg mb-4">
+            🛠️
           </div>
+          <h3 class="text-base font-bold text-slate-900 mb-1.5">Developer Testing Mode</h3>
+          <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+            Built-in Dev Mode in the Guide tab locks current location to Dhariwal by default, allowing comprehensive testing from anywhere in the world.
+          </p>
         </div>
 
       </div>
     </section>
 
     <!-- ======================================================================= -->
-    <!-- Zero Push Notification Architecture                                     -->
+    <!-- Backend APIs & WebSocket Endpoints Banner                               -->
     <!-- ======================================================================= -->
-    <section class="pt-24 pb-12">
-      <div class="text-center max-w-3xl mx-auto mb-14">
-        <span class="text-xs font-mono font-bold uppercase tracking-widest text-emerald-400">Architecture Philosophy</span>
-        <h2 class="text-3xl font-extrabold text-white mt-2">Why WebSocket-First? No Push Notifications Needed.</h2>
-        <p class="text-sm text-gray-400 mt-3">
-          Traditional APNs / FCM push notifications suffer from unpredictable network delivery delays, payload restrictions, and battery drain. Phatak Punjab uses direct persistent WebSockets for live road telemetry.
-        </p>
-      </div>
-
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div class="glass-card rounded-2xl p-6 border border-white/5">
-          <div class="w-12 h-12 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center font-bold text-xl mb-4">
-            ⚡
-          </div>
-          <h3 class="text-lg font-bold text-white mb-2">Zero Push Delays</h3>
-          <p class="text-xs text-gray-400 leading-relaxed">
-            Sub-second status synchronization as trains enter block sections. Drivers receive gate drop warnings before sirens finish sounding.
+    <section class="mt-16 p-6 sm:p-8 rounded-2xl bg-slate-50 border border-slate-200">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div>
+          <span class="text-[11px] font-mono font-bold uppercase tracking-wider text-blue-600">FastAPI + WebSocket Backend</span>
+          <h3 class="text-xl font-extrabold text-slate-900 mt-0.5">Looking for API Integration?</h3>
+          <p class="text-xs sm:text-sm text-slate-600 mt-1 max-w-xl">
+            Stream live Punjab level crossing status directly into your app or vehicle telematics via WebSocket. Zero push notifications required.
           </p>
         </div>
-
-        <div class="glass-card rounded-2xl p-6 border border-white/5">
-          <div class="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-bold text-xl mb-4">
-            🔋
-          </div>
-          <h3 class="text-lg font-bold text-white mb-2">Battery & Foreground Efficient</h3>
-          <p class="text-xs text-gray-400 leading-relaxed">
-            Connects on-demand when user is actively monitoring crossings or in navigation mode. Consumes zero background battery quota.
-          </p>
-        </div>
-
-        <div class="glass-card rounded-2xl p-6 border border-white/5">
-          <div class="w-12 h-12 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center font-bold text-xl mb-4">
-            ☁️
-          </div>
-          <h3 class="text-lg font-bold text-white mb-2">Render.yaml Deploy Ready</h3>
-          <p class="text-xs text-gray-400 leading-relaxed">
-            Pre-configured with <code>render.yaml</code>, <code>uvicorn</code>, and production-grade ASGI concurrency ready for instant global hosting.
-          </p>
+        <div class="flex flex-wrap items-center gap-3">
+          <a href="/apis" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-bold bg-white text-slate-800 border border-slate-300 hover:bg-slate-100 transition-all">
+            JSON /apis Spec
+          </a>
+          <a href="/docs" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-bold bg-blue-600 text-white hover:bg-blue-700 transition-all">
+            Swagger /docs
+          </a>
         </div>
       </div>
     </section>
@@ -441,152 +448,23 @@
   </main>
 
   <!-- ========================================================================= -->
-  <!-- Footer                                                                    -->
+  <!-- Clean Footer                                                              -->
   <!-- ========================================================================= -->
-  <footer class="border-t border-white/5 bg-brand-dark py-12 text-sm text-gray-400">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-6">
-      <div class="flex items-center space-x-3">
-        <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-sm">P</div>
-        <span class="font-bold text-white">Phatak Punjab Intelligence</span>
-        <span class="text-xs text-gray-400">© 2026. All rights reserved.</span>
+  <footer class="border-t border-slate-100 bg-white py-10 text-xs text-slate-500">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center space-x-2">
+        <span class="font-bold text-slate-800">Phatak Punjab</span>
+        <span>•</span>
+        <span>© 2026. Built with FastAPI & SwiftUI.</span>
       </div>
-
-      <div class="flex items-center space-x-6 text-xs font-mono">
-        <a href="/apis" class="hover:text-white transition-colors">/apis (JSON)</a>
-        <a href="/health" class="hover:text-white transition-colors">/health</a>
-        <a href="/docs" class="hover:text-white transition-colors">/docs (Swagger)</a>
-        <a href="https://github.com/rahuljamba/Phatak" target="_blank" class="hover:text-white transition-colors flex items-center space-x-1">
-          <span>GitHub</span>
-          <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
-        </a>
+      <div class="flex items-center space-x-5 font-mono">
+        <a href="/apis" class="hover:text-slate-800">/apis</a>
+        <a href="/health" class="hover:text-slate-800">/health</a>
+        <a href="/docs" class="hover:text-slate-800">/docs</a>
+        <a href="https://github.com/rahuljamba/Phatak" target="_blank" class="hover:text-slate-800 text-slate-700 font-semibold">GitHub</a>
       </div>
     </div>
   </footer>
 
-  <!-- ========================================================================= -->
-  <!-- WebSocket Client Logic                                                    -->
-  <!-- ========================================================================= -->
-  <script>
-    let ws = null;
-    const wsConsole = document.getElementById('wsConsole');
-    const wsStatusBadge = document.getElementById('wsStatusBadge');
-    const wsConnectBtnText = document.getElementById('wsConnectBtnText');
-    const wsConnectBtn = document.getElementById('wsConnectBtn');
-    const wsEndpointLabel = document.getElementById('wsEndpointLabel');
-
-    function getWsUrl() {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const host = window.location.host || 'localhost:8000';
-      return `${protocol}//${host}/ws/phatak`;
-    }
-
-    // Set label
-    wsEndpointLabel.textContent = getWsUrl();
-
-    function logToConsole(message, type = 'info') {
-      const line = document.createElement('div');
-      const time = new Date().toLocaleTimeString();
-      let colorClass = 'text-gray-300';
-      
-      if (type === 'sent') colorClass = 'text-cyan-400 font-semibold';
-      else if (type === 'received') colorClass = 'text-emerald-300';
-      else if (type === 'error') colorClass = 'text-red-400';
-      else if (type === 'status') colorClass = 'text-amber-400 font-semibold';
-
-      line.className = `${colorClass} font-mono`;
-      line.innerHTML = `<span class="text-gray-400">[${time}]</span> ${escapeHtml(message)}`;
-      wsConsole.appendChild(line);
-      wsConsole.scrollTop = wsConsole.scrollHeight;
-    }
-
-    function escapeHtml(str) {
-      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    }
-
-    function clearConsole() {
-      wsConsole.innerHTML = '';
-      logToConsole('// Console cleared. Ready.');
-    }
-
-    function updateStatus(connected) {
-      if (connected) {
-        wsStatusBadge.textContent = 'CONNECTED';
-        wsStatusBadge.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
-        wsConnectBtnText.textContent = 'Disconnect WS';
-        wsConnectBtn.className = 'px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-600/20 transition-all flex items-center space-x-2';
-      } else {
-        wsStatusBadge.textContent = 'DISCONNECTED';
-        wsStatusBadge.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-red-500/10 text-red-400 border border-red-500/20';
-        wsConnectBtnText.textContent = 'Connect WS';
-        wsConnectBtn.className = 'px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/20 transition-all flex items-center space-x-2';
-      }
-    }
-
-    function toggleWebSocket() {
-      if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
-        ws.close();
-      } else {
-        connectWebSocket();
-      }
-    }
-
-    function connectWebSocket() {
-      const url = getWsUrl();
-      logToConsole(`Connecting to ${url}...`, 'status');
-      
-      try {
-        ws = new WebSocket(url);
-
-        ws.onopen = () => {
-          updateStatus(true);
-          logToConsole('Connected to /ws/phatak stream!', 'status');
-        };
-
-        ws.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data);
-            logToConsole(`<- INCOMING [${data.type || 'message'}]: ${JSON.stringify(data, null, 2)}`, 'received');
-          } catch(e) {
-            logToConsole(`<- INCOMING: ${event.data}`, 'received');
-          }
-        };
-
-        ws.onclose = (event) => {
-          updateStatus(false);
-          logToConsole(`WebSocket connection closed (code: ${event.code})`, 'status');
-        };
-
-        ws.onerror = (err) => {
-          logToConsole(`WebSocket Error: Check if server is running on ${url}`, 'error');
-        };
-
-      } catch (err) {
-        logToConsole(`Connection failure: ${err.message}`, 'error');
-        updateStatus(false);
-      }
-    }
-
-    function sendWsMessage(obj) {
-      if (!ws || ws.readyState !== WebSocket.OPEN) {
-        logToConsole('Cannot send: WebSocket is not connected. Click "Connect WS" first.', 'error');
-        return;
-      }
-      const jsonStr = JSON.stringify(obj);
-      ws.send(jsonStr);
-      logToConsole(`-> OUTGOING: ${jsonStr}`, 'sent');
-    }
-
-    function sendWsPing() {
-      sendWsMessage({ action: 'ping' });
-    }
-
-    function subscribeCity(cityName) {
-      sendWsMessage({ action: 'subscribe', city: cityName });
-    }
-
-    function requestSample() {
-      sendWsMessage({ action: 'request_sample' });
-    }
-  </script>
 </body>
 </html>

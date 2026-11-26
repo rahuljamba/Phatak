@@ -18,6 +18,10 @@ logger = logging.getLogger("phatak_punjab")
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
 STATIC_INDEX = STATIC_DIR / "index.html"
+STATIC_DASHBOARD = STATIC_DIR / "dashboard.html"
+
+# Import authentication router
+from auth import router as auth_router
 
 app = FastAPI(
     title="Phatak Punjab Backend",
@@ -35,6 +39,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Mount authentication router
+app.include_router(auth_router)
 
 # Mount static files directory if it exists
 if STATIC_DIR.exists():
@@ -209,7 +216,7 @@ manager = ConnectionManager()
 
 @app.get("/", summary="Landing Page", tags=["Web Dashboard"])
 async def get_index():
-    """Serves the modern dark-themed Phatak Punjab responsive landing page."""
+    """Serves the modern Phatak Punjab responsive landing page."""
     if STATIC_INDEX.exists():
         return FileResponse(str(STATIC_INDEX), media_type="text/html")
     return JSONResponse(
@@ -219,6 +226,17 @@ async def get_index():
             "apis_overview": "/apis",
             "websocket": "/ws/phatak",
         }
+    )
+
+
+@app.get("/dashboard", summary="User Dashboard", tags=["Web Dashboard"])
+async def get_dashboard():
+    """Serves the authenticated user dashboard."""
+    if STATIC_DASHBOARD.exists():
+        return FileResponse(str(STATIC_DASHBOARD), media_type="text/html")
+    return JSONResponse(
+        {"message": "dashboard.html not found.", "status": "error"},
+        status_code=404,
     )
 
 
@@ -301,8 +319,39 @@ async def apis_overview():
                 "path": "/",
                 "method": "GET",
                 "protocol": "HTTP/HTTPS",
-                "description": "Modern dark-themed responsive web dashboard & live crossing preview.",
+                "description": "Modern responsive web dashboard & live crossing preview.",
                 "response_type": "text/html",
+            },
+            {
+                "path": "/dashboard",
+                "method": "GET",
+                "protocol": "HTTP/HTTPS",
+                "description": "Authenticated user dashboard with live WebSocket stream & user profile.",
+                "response_type": "text/html",
+            },
+            {
+                "path": "/apis/auth/send-otp",
+                "method": "POST",
+                "protocol": "HTTP/HTTPS",
+                "description": "Validates Indian mobile number, checks if new user, generates 6-digit OTP, stores HMAC hash (5m expiry).",
+                "request_body": {"mobile": "9876543210"},
+                "response_type": "application/json",
+            },
+            {
+                "path": "/apis/auth/verify-otp",
+                "method": "POST",
+                "protocol": "HTTP/HTTPS",
+                "description": "Verifies 6-digit OTP, registers or logs in user in SQLite users table, returns HMAC-SHA256 Bearer token and redirect.",
+                "request_body": {"mobile": "9876543210", "otp": "123456"},
+                "response_type": "application/json",
+            },
+            {
+                "path": "/apis/auth/me",
+                "method": "GET",
+                "protocol": "HTTP/HTTPS",
+                "description": "Returns authenticated user identity from Bearer token in Authorization header.",
+                "headers": {"Authorization": "Bearer <token>"},
+                "response_type": "application/json",
             },
             {
                 "path": "/health",

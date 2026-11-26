@@ -26,6 +26,12 @@ venv/
 ENV/
 env/
 
+# Database
+phatak.db
+*.sqlite
+*.sqlite3
+*.db
+
 # IDE & OS
 .DS_Store
 .idea/

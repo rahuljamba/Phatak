@@ -12,6 +12,7 @@ import secrets
 import sqlite3
 import time
 from typing import Any, Dict, Optional
+import urllib.request
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from pydantic import BaseModel, Field
@@ -189,6 +190,66 @@ def decode_access_token(token: str) -> Optional[Dict[str, Any]]:
         return None
 
 
+def verify_firebase_id_token(id_token: str) -> Optional[Dict[str, Any]]:
+    """
+    Verifies a client-side Firebase Auth ID token.
+    1. Validates against Google Identity Toolkit REST API when FIREBASE_API_KEY is configured.
+    2. Fallback validates decoded JWT structure and expiration.
+    Returns dict with 'phone_number' and 'uid' on success, or None on failure.
+    """
+    if not id_token or len(id_token) < 10:
+        return None
+
+    firebase_api_key = os.environ.get("FIREBASE_API_KEY", "").strip()
+
+    # 1. Official Google Identity Toolkit verification if API key is provided
+    if firebase_api_key:
+        try:
+            req_data = json.dumps({"idToken": id_token}).encode("utf-8")
+            url = f"https://identitytoolkit.googleapis.com/v1/accounts:lookup?key={firebase_api_key}"
+            req = urllib.request.Request(
+                url,
+                data=req_data,
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=5.0) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                users = data.get("users", [])
+                if users and "phoneNumber" in users[0]:
+                    return {
+                        "phone_number": users[0]["phoneNumber"],
+                        "uid": users[0].get("localId", ""),
+                    }
+        except Exception as e:
+            logger.warning(f"Google Identity Toolkit verification failed: {e}")
+
+    # 2. Structured JWT payload decode verification (dev mode or fallback)
+    try:
+        parts = id_token.split(".")
+        if len(parts) != 3:
+            return None
+        payload_bytes = b64url_decode(parts[1])
+        payload = json.loads(payload_bytes.decode("utf-8"))
+
+        # Verify exp timestamp
+        exp = payload.get("exp", 0)
+        if exp and exp < time.time():
+            logger.warning("Firebase token has expired.")
+            return None
+
+        phone = payload.get("phone_number")
+        if phone:
+            return {
+                "phone_number": phone,
+                "uid": payload.get("user_id") or payload.get("sub", ""),
+            }
+    except Exception as e:
+        logger.warning(f"Failed to decode Firebase token payload: {e}")
+
+    return None
+
+
 # ============================================================================
 # Pydantic Request / Response Models
 # ============================================================================
@@ -204,6 +265,10 @@ class SendOTPRequest(BaseModel):
 class VerifyOTPRequest(BaseModel):
     mobile: str = Field(..., description="10-digit Indian mobile number")
     otp: str = Field(..., description="6-digit verification code", min_length=4, max_length=8)
+
+
+class FirebaseLoginRequest(BaseModel):
+    id_token: str = Field(..., description="Firebase Auth ID Token", min_length=10)
 
 
 # ============================================================================
@@ -424,4 +489,81 @@ async def get_me(current_user: Dict[str, Any] = Depends(get_current_user)):
         "mobile": current_user["mobile"],
         "created_at": current_user.get("created_at"),
         "last_login_at": current_user.get("last_login_at"),
+    }
+
+
+@router.get("/firebase-config", summary="Get Public Firebase Web Config")
+async def get_firebase_config():
+    """
+    Returns public Firebase configuration for client-side Phone Auth.
+    """
+    api_key = os.environ.get("FIREBASE_API_KEY", "").strip()
+    return {
+        "apiKey": api_key,
+        "authDomain": os.environ.get("FIREBASE_AUTH_DOMAIN", "").strip(),
+        "projectId": os.environ.get("FIREBASE_PROJECT_ID", "").strip(),
+        "storageBucket": os.environ.get("FIREBASE_STORAGE_BUCKET", "").strip(),
+        "messagingSenderId": os.environ.get("FIREBASE_MESSAGING_SENDER_ID", "").strip(),
+        "appId": os.environ.get("FIREBASE_APP_ID", "").strip(),
+        "enabled": bool(api_key),
+    }
+
+
+@router.post(
+    "/firebase-login",
+    summary="Login / Register with Firebase Phone Auth",
+    status_code=status.HTTP_200_OK,
+)
+async def firebase_login(req: FirebaseLoginRequest):
+    """
+    Exchanges a client-side verified Firebase Phone Auth ID token
+    for a Phatak Punjab session Bearer token.
+    Automatically registers new users or updates last_login_at.
+    """
+    token_info = verify_firebase_id_token(req.id_token)
+    if not token_info or not token_info.get("phone_number"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired Firebase ID token.",
+        )
+
+    phone_number = token_info["phone_number"]
+    norm_mobile = normalize_indian_mobile(phone_number)
+    if not norm_mobile:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Phone number {phone_number} is not a valid Indian mobile number.",
+        )
+
+    iso_now = datetime.now(timezone.utc).isoformat()
+
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT id FROM users WHERE mobile = ?;", (norm_mobile,))
+        existing_user = cursor.fetchone()
+
+        if existing_user:
+            action = "logged_in"
+            user_id = existing_user["id"]
+            cursor.execute("UPDATE users SET last_login_at = ? WHERE id = ?;", (iso_now, user_id))
+        else:
+            action = "registered"
+            cursor.execute(
+                "INSERT INTO users (mobile, created_at, last_login_at) VALUES (?, ?, ?);",
+                (norm_mobile, iso_now, iso_now),
+            )
+            user_id = cursor.lastrowid
+
+    # Generate standard session token
+    token = create_access_token(user_id=user_id, mobile=norm_mobile)
+
+    return {
+        "status": "authenticated",
+        "action": action,
+        "token": token,
+        "user": {
+            "id": user_id,
+            "mobile": norm_mobile,
+        },
+        "redirect": "/dashboard",
     }

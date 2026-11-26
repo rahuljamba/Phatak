@@ -360,6 +360,21 @@ async def apis_overview():
                 "response_type": "application/json",
             },
             {
+                "path": "/apis/auth/firebase-login",
+                "method": "POST",
+                "protocol": "HTTP/HTTPS",
+                "description": "Exchanges client-verified Firebase ID Token for a Phatak Punjab session Bearer token.",
+                "request_body": {"id_token": "<firebase_id_token>"},
+                "response_type": "application/json",
+            },
+            {
+                "path": "/apis/auth/firebase-config",
+                "method": "GET",
+                "protocol": "HTTP/HTTPS",
+                "description": "Returns public Firebase configuration for client-side Phone Auth.",
+                "response_type": "application/json",
+            },
+            {
                 "path": "/health",
                 "method": "GET",
                 "protocol": "HTTP/HTTPS",

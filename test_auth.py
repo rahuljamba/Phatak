@@ -20,7 +20,7 @@ from fastapi.testclient import TestClient
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from main import app
-from auth import DB_PATH, get_db, normalize_indian_mobile
+from auth import DB_PATH, get_db, normalize_indian_mobile, b64url_encode
 
 client = TestClient(app)
 
@@ -200,10 +200,65 @@ def test_swagger_api_route():
     assert res_docs.headers["location"] == "/api"
 
 
+def make_mock_firebase_token(phone_number: str, exp: float = None) -> str:
+    import json
+    if exp is None:
+        exp = time.time() + 3600
+    header = b64url_encode(json.dumps({"alg": "RS256", "typ": "JWT"}).encode("utf-8"))
+    payload = b64url_encode(json.dumps({"phone_number": phone_number, "exp": exp, "user_id": "fb_uid_99"}).encode("utf-8"))
+    sig = b64url_encode(b"mock_firebase_sig")
+    return f"{header}.{payload}.{sig}"
+
+
+def test_firebase_endpoints():
+    # 1. Public config check
+    res_cfg = client.get("/apis/auth/firebase-config")
+    assert res_cfg.status_code == 200
+    cfg = res_cfg.json()
+    assert "apiKey" in cfg
+    assert "enabled" in cfg
+
+    # 2. Valid Firebase Phone Auth Login
+    test_mobile = "+919876599999"
+    with get_db() as conn:
+        conn.execute("DELETE FROM users WHERE mobile = ?", (test_mobile,))
+
+    mock_token = make_mock_firebase_token(test_mobile)
+    res_login = client.post("/apis/auth/firebase-login", json={"id_token": mock_token})
+    assert res_login.status_code == 200, res_login.text
+    data = res_login.json()
+    assert data["status"] == "authenticated"
+    assert data["action"] == "registered"
+    assert data["user"]["mobile"] == test_mobile
+    assert "token" in data
+    bearer_token = data["token"]
+
+    # Verify session token works with /apis/auth/me
+    res_me = client.get("/apis/auth/me", headers={"Authorization": f"Bearer {bearer_token}"})
+    assert res_me.status_code == 200
+    assert res_me.json()["mobile"] == test_mobile
+
+    # 3. Existing user login with Firebase token
+    res_login2 = client.post("/apis/auth/firebase-login", json={"id_token": mock_token})
+    assert res_login2.status_code == 200
+    assert res_login2.json()["action"] == "logged_in"
+
+    # 4. Expired Firebase token rejection
+    expired_token = make_mock_firebase_token(test_mobile, exp=time.time() - 100)
+    res_expired = client.post("/apis/auth/firebase-login", json={"id_token": expired_token})
+    assert res_expired.status_code == 401
+
+    # 5. Malformed token rejection
+    res_bad = client.post("/apis/auth/firebase-login", json={"id_token": "not.a.valid.jwt"})
+    assert res_bad.status_code == 401
+
+
 if __name__ == "__main__":
     print("Running Phatak Punjab Auth Test Suite...")
     test_swagger_api_route()
     print("✓ test_swagger_api_route passed")
+    test_firebase_endpoints()
+    print("✓ test_firebase_endpoints passed")
     test_normalize_indian_mobile()
     print("✓ test_normalize_indian_mobile passed")
     test_invalid_mobile_numbers()

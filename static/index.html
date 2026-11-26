@@ -16,6 +16,10 @@
   
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Google Firebase App & Auth SDK (v10 compat) -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
   <script>
     tailwind.config = {
       theme: {
@@ -489,6 +493,9 @@
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
       </button>
 
+      <!-- Invisible reCAPTCHA container for Google Firebase Phone Auth -->
+      <div id="recaptcha-container"></div>
+
       <!-- STEP 1: Enter Mobile Number -->
       <div id="stepMobile" class="space-y-5">
         <div>
@@ -625,43 +632,63 @@
     let currentMobile = '';
     let timerInterval = null;
     let devOtpStored = '';
+    let isFirebaseReady = false;
+    let firebaseConfirmation = null;
+    let appVerifier = null;
 
-    // Check Auth State on Page Load
+    // Check Auth State and Initialize Firebase on Page Load
     document.addEventListener('DOMContentLoaded', async () => {
+      // 1. Check existing session
       const token = localStorage.getItem(TOKEN_KEY);
-      if (!token) return;
+      if (token) {
+        try {
+          const res = await fetch('/apis/auth/me', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
 
-      try {
-        const res = await fetch('/apis/auth/me', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+          if (res.ok) {
+            const user = await res.json();
+            const navContainer = document.getElementById('navAuthContainer');
+            if (navContainer) {
+              navContainer.innerHTML = `
+                <a href="/dashboard" class="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold transition-all flex items-center space-x-1.5 shadow-2xs">
+                  <span>Dashboard</span>
+                  <span class="font-mono text-xs opacity-80">(${user.mobile.slice(-4)})</span>
+                  <span>→</span>
+                </a>
+              `;
+            }
 
-        if (res.ok) {
-          const user = await res.json();
-          // Update Nav Button to Dashboard
-          const navContainer = document.getElementById('navAuthContainer');
-          if (navContainer) {
-            navContainer.innerHTML = `
-              <a href="/dashboard" class="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold transition-all flex items-center space-x-1.5 shadow-2xs">
-                <span>Dashboard</span>
-                <span class="font-mono text-xs opacity-80">(${user.mobile.slice(-4)})</span>
-                <span>→</span>
-              </a>
-            `;
+            const heroBtn = document.getElementById('heroAuthBtn');
+            if (heroBtn) {
+              heroBtn.onclick = () => window.location.href = '/dashboard';
+              const heroText = document.getElementById('heroAuthBtnText');
+              if (heroText) heroText.textContent = 'Go to Dashboard →';
+            }
+          } else {
+            localStorage.removeItem(TOKEN_KEY);
           }
-
-          // Update Hero Button
-          const heroBtn = document.getElementById('heroAuthBtn');
-          if (heroBtn) {
-            heroBtn.onclick = () => window.location.href = '/dashboard';
-            const heroText = document.getElementById('heroAuthBtnText');
-            if (heroText) heroText.textContent = 'Go to Dashboard →';
-          }
-        } else {
-          localStorage.removeItem(TOKEN_KEY);
+        } catch (e) {
+          console.warn('Session verification error:', e);
         }
-      } catch (e) {
-        console.warn('Session verification error:', e);
+      }
+
+      // 2. Load Firebase Phone Auth configuration
+      try {
+        const fbRes = await fetch('/apis/auth/firebase-config');
+        if (fbRes.ok) {
+          const fbConfig = await fbRes.json();
+          if (fbConfig.enabled && typeof firebase !== 'undefined' && firebase.apps.length === 0) {
+            firebase.initializeApp(fbConfig);
+            appVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+              size: 'invisible'
+            });
+            isFirebaseReady = true;
+            console.log('✓ Google Firebase Phone Auth initialized for project:', fbConfig.projectId);
+          }
+        }
+      } catch (err) {
+        console.warn('Firebase config unavailable, using standard local OTP flow:', err);
       }
     });
 
@@ -691,6 +718,7 @@
 
     function backToMobileStep() {
       clearInterval(timerInterval);
+      firebaseConfirmation = null;
       document.getElementById('stepMobile').classList.remove('hidden');
       document.getElementById('stepOtp').classList.add('hidden');
       document.getElementById('stepSuccess').classList.add('hidden');
@@ -698,9 +726,9 @@
       document.getElementById('otpError').classList.add('hidden');
     }
 
-    // Step 1: Send OTP
+    // Step 1: Send OTP (Google Firebase or Dev Mode Fallback)
     async function handleSendOtp(isResend = false) {
-      let rawMobile = isResend ? currentMobile : document.getElementById('mobileInput').value.trim();
+      let rawMobile = isResend ? currentMobile.replace('+91', '') : document.getElementById('mobileInput').value.trim();
       const mobileError = document.getElementById('mobileError');
       const mobileErrorText = document.getElementById('mobileErrorText');
       const sendOtpBtn = document.getElementById('sendOtpBtn');
@@ -709,16 +737,59 @@
 
       mobileError.classList.add('hidden');
 
-      if (!rawMobile) {
+      if (!rawMobile || rawMobile.length < 10) {
         mobileErrorText.textContent = 'Please enter your 10-digit mobile number';
         mobileError.classList.remove('hidden');
         return;
       }
 
       sendOtpBtn.disabled = true;
-      sendOtpBtnText.textContent = isResend ? 'Resending...' : 'Sending OTP...';
+      sendOtpBtnText.textContent = isResend ? 'Resending...' : (isFirebaseReady ? 'Sending Google SMS...' : 'Sending OTP...');
       sendOtpSpinner.classList.remove('hidden');
 
+      // 1. Google Firebase Phone Auth (when configured)
+      if (isFirebaseReady && typeof firebase !== 'undefined') {
+        try {
+          const fullMobile = '+91' + rawMobile.slice(-10);
+          if (!appVerifier) {
+            appVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', { size: 'invisible' });
+          }
+          firebaseConfirmation = await firebase.auth().signInWithPhoneNumber(fullMobile, appVerifier);
+          currentMobile = fullMobile;
+
+          // Switch to Step 2
+          document.getElementById('stepMobile').classList.add('hidden');
+          document.getElementById('stepOtp').classList.remove('hidden');
+          document.getElementById('otpTargetMobile').textContent = fullMobile;
+          
+          const badge = document.getElementById('userStatusBadge');
+          badge.textContent = 'Google Firebase SMS Active';
+          badge.className = 'ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200';
+          
+          document.getElementById('devOtpBanner').classList.add('hidden');
+          startOtpCountdown(300);
+
+          const otpInput = document.getElementById('otpInput');
+          otpInput.value = '';
+          setTimeout(() => otpInput.focus(), 150);
+          return;
+        } catch (fbErr) {
+          console.warn('Firebase Phone Auth attempt failed, falling back to local backend:', fbErr);
+          if (appVerifier && appVerifier.render) {
+            try { appVerifier.render().then(widgetId => grecaptcha.reset(widgetId)); } catch(e){}
+          }
+          if (fbErr.code === 'auth/invalid-phone-number') {
+            mobileErrorText.textContent = 'Invalid Indian phone number format';
+            mobileError.classList.remove('hidden');
+            sendOtpBtn.disabled = false;
+            sendOtpBtnText.textContent = 'Send 6-Digit OTP';
+            sendOtpSpinner.classList.add('hidden');
+            return;
+          }
+        }
+      }
+
+      // 2. Standard Dev / Local Backend Flow (reliable fallback)
       try {
         const res = await fetch('/apis/auth/send-otp', {
           method: 'POST',
@@ -734,6 +805,7 @@
 
         currentMobile = data.mobile;
         devOtpStored = data.dev_otp || '';
+        firebaseConfirmation = null;
 
         // Switch to Step 2
         document.getElementById('stepMobile').classList.add('hidden');
@@ -836,20 +908,40 @@
       verifySpinner.classList.remove('hidden');
 
       try {
-        const res = await fetch('/apis/auth/verify-otp', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ mobile: currentMobile, otp: otp })
-        });
+        let authResult = null;
 
-        const data = await res.json();
+        // 1. Verify via Google Firebase
+        if (firebaseConfirmation) {
+          verifyBtnText.textContent = 'Verifying with Google...';
+          const cred = await firebaseConfirmation.confirm(otp);
+          const idToken = await cred.user.getIdToken();
 
-        if (!res.ok) {
-          throw new Error(data.detail || 'Verification failed');
+          const res = await fetch('/apis/auth/firebase-login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id_token: idToken })
+          });
+
+          authResult = await res.json();
+          if (!res.ok) {
+            throw new Error(authResult.detail || 'Firebase verification failed on server');
+          }
+        } else {
+          // 2. Standard Dev / Local Backend Verification
+          const res = await fetch('/apis/auth/verify-otp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mobile: currentMobile, otp: otp })
+          });
+
+          authResult = await res.json();
+          if (!res.ok) {
+            throw new Error(authResult.detail || 'Verification failed');
+          }
         }
 
-        // Save token
-        localStorage.setItem(TOKEN_KEY, data.token);
+        // Save session token
+        localStorage.setItem(TOKEN_KEY, authResult.token);
 
         // Show Success Step
         clearInterval(timerInterval);
@@ -858,7 +950,7 @@
 
         // Redirect
         setTimeout(() => {
-          window.location.href = data.redirect || '/dashboard';
+          window.location.href = authResult.redirect || '/dashboard';
         }, 600);
 
       } catch (err) {

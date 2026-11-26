@@ -188,8 +188,22 @@ def test_invalid_mobile_numbers():
         assert "invalid indian mobile number" in res.json()["detail"].lower()
 
 
+def test_swagger_api_route():
+    # 1. Direct access to /api
+    res = client.get("/api")
+    assert res.status_code == 200
+    assert "swagger" in res.text.lower() or "openapi" in res.text.lower()
+
+    # 2. Redirect from /docs to /api
+    res_docs = client.get("/docs", follow_redirects=False)
+    assert res_docs.status_code in (307, 308, 302, 301)
+    assert res_docs.headers["location"] == "/api"
+
+
 if __name__ == "__main__":
     print("Running Phatak Punjab Auth Test Suite...")
+    test_swagger_api_route()
+    print("✓ test_swagger_api_route passed")
     test_normalize_indian_mobile()
     print("✓ test_normalize_indian_mobile passed")
     test_invalid_mobile_numbers()

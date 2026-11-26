@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional, Set
 
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 # Logging setup
@@ -27,7 +27,7 @@ app = FastAPI(
     title="Phatak Punjab Backend",
     description="Live Punjab Railway Level Crossing Intelligence & WebSocket Stream Service",
     version="1.0.0",
-    docs_url="/docs",
+    docs_url="/api",
     redoc_url="/redoc",
 )
 
@@ -240,6 +240,12 @@ async def get_dashboard():
     )
 
 
+@app.get("/docs", include_in_schema=False)
+async def redirect_docs():
+    """Redirects legacy /docs to /api Swagger documentation."""
+    return RedirectResponse(url="/api")
+
+
 @app.get("/health", summary="Health Check", tags=["Monitoring"])
 async def health_check():
     """Health status and operational metrics probe."""
@@ -395,7 +401,7 @@ async def apis_overview():
                 ],
             },
             {
-                "path": "/docs",
+                "path": "/api",
                 "method": "GET",
                 "protocol": "HTTP/HTTPS",
                 "description": "Interactive OpenAPI (Swagger UI) documentation.",

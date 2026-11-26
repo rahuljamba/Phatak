@@ -39,7 +39,7 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 * 🔍 **Health Probe**: [http://localhost:8000/health](http://localhost:8000/health)
 * 📡 **API Specification**: [http://localhost:8000/apis](http://localhost:8000/apis)
 * ⚡ **WebSocket Stream**: `ws://localhost:8000/ws/phatak`
-* 📖 **Swagger UI**: [http://localhost:8000/docs](http://localhost:8000/docs)
+* 📖 **Swagger UI**: [http://localhost:8000/api](http://localhost:8000/api) (also redirects from `/docs`)
 
 ---
 
@@ -47,11 +47,15 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 | Method | Endpoint | Protocol | Description |
 |---|---|---|---|
-| `GET` | `/` | HTTP | Modern dark-themed dashboard & live crossing preview |
+| `GET` | `/` | HTTP | Modern dashboard & live crossing preview |
+| `GET` | `/dashboard` | HTTP | Authenticated user dashboard with live WebSocket stream |
 | `GET` | `/health` | HTTP | Service health status & metrics probe |
 | `GET` | `/apis` | HTTP | Complete WebSocket-first API specification (JSON) |
 | `WS` | `/ws/phatak` | WebSocket | Live Punjab crossing telemetry stream & subscriptions |
-| `GET` | `/docs` | HTTP | Interactive Swagger UI API documentation |
+| `GET` | `/api` | HTTP | Interactive Swagger UI API documentation (redirects from `/docs`) |
+| `POST` | `/apis/auth/send-otp` | HTTP | Request 6-digit Indian mobile OTP |
+| `POST` | `/apis/auth/verify-otp` | HTTP | Verify OTP, register/login, receive Bearer token |
+| `GET` | `/apis/auth/me` | HTTP | Authenticated user identity |
 
 ---
 

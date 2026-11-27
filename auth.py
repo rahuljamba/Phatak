@@ -73,10 +73,17 @@ def init_db() -> None:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 mobile TEXT UNIQUE NOT NULL,
                 created_at TEXT NOT NULL,
-                last_login_at TEXT NOT NULL
+                last_login_at TEXT NOT NULL,
+                current_session_id TEXT
             );
         """)
         conn.execute("CREATE INDEX IF NOT EXISTS idx_users_mobile ON users(mobile);")
+
+        # Safely migrate existing databases if current_session_id column is missing
+        try:
+            conn.execute("ALTER TABLE users ADD COLUMN current_session_id TEXT;")
+        except sqlite3.OperationalError:
+            pass  # column already exists
 
         conn.execute("""
             CREATE TABLE IF NOT EXISTS otp_requests (
@@ -148,16 +155,18 @@ def b64url_decode(s: str) -> bytes:
     return base64.urlsafe_b64decode(padded)
 
 
-def create_access_token(user_id: int, mobile: str) -> str:
+def create_access_token(user_id: int, mobile: str, session_id: Optional[str] = None) -> str:
     """
     Generates a secure HMAC-SHA256 Bearer Token using only the Python standard library.
     Follows standard RFC 7519 JWT structure: header.payload.signature.
+    Embeds 'sid' (session_id) to enforce single active device per user.
     """
     now = int(time.time())
     header = {"alg": "HS256", "typ": "JWT"}
     payload = {
         "uid": user_id,
         "mob": mobile,
+        "sid": session_id or "",
         "iat": now,
         "exp": now + TOKEN_EXPIRY_SECONDS,
     }
@@ -382,6 +391,14 @@ def send_fast2sms_otp(mobile_10_digits: str, otp: str) -> tuple:
 # Pydantic Request / Response Models
 # ============================================================================
 
+class MobileLoginRequest(BaseModel):
+    mobile: str = Field(
+        ...,
+        description="10-digit Indian mobile number (e.g. 9876543210 or +919876543210)",
+        examples=["9988542426"],
+    )
+
+
 class SendOTPRequest(BaseModel):
     mobile: str = Field(
         ...,
@@ -426,10 +443,14 @@ async def get_current_user(authorization: Optional[str] = Header(None)) -> Dict[
 
     user_id = payload.get("uid")
     mobile = payload.get("mob")
+    token_sid = payload.get("sid")
 
     with get_db() as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT id, mobile, created_at, last_login_at FROM users WHERE id = ?;", (user_id,))
+        cursor.execute(
+            "SELECT id, mobile, created_at, last_login_at, current_session_id FROM users WHERE id = ?;",
+            (user_id,),
+        )
         row = cursor.fetchone()
         if not row:
             raise HTTPException(
@@ -437,17 +458,84 @@ async def get_current_user(authorization: Optional[str] = Header(None)) -> Dict[
                 detail="User account associated with this token does not exist.",
                 headers={"WWW-Authenticate": "Bearer"},
             )
+
+        # Enforce single active device session:
+        # If the user logged in from another device, current_session_id in DB will have changed!
+        db_sid = row["current_session_id"]
+        if db_sid and token_sid and db_sid != token_sid:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Your session has ended because your account was logged in from another device.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
         return {
             "id": row["id"],
             "mobile": row["mobile"],
             "created_at": row["created_at"],
             "last_login_at": row["last_login_at"],
+            "session_id": db_sid,
         }
 
 
 # ============================================================================
 # Endpoints
 # ============================================================================
+
+@router.post("/login", summary="Single-Device Direct Mobile Login / Register", status_code=status.HTTP_200_OK)
+async def mobile_login(req: MobileLoginRequest):
+    """
+    Direct mobile login and registration.
+    - If user does not exist: auto-registers the user and issues a fresh session token.
+    - If user exists: updates last_login_at and issues a fresh session token.
+    - Single-Device Check: Generates a new unique session_id on every login.
+      Any previous session from another device will be terminated immediately.
+    """
+    norm_mobile = normalize_indian_mobile(req.mobile)
+    if not norm_mobile:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid Indian mobile number. Please enter a valid 10-digit number starting with 6, 7, 8, or 9.",
+        )
+
+    iso_now = datetime.now(timezone.utc).isoformat()
+    session_id = secrets.token_hex(16)
+
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, created_at FROM users WHERE mobile = ?;", (norm_mobile,))
+        existing_user = cursor.fetchone()
+
+        if existing_user:
+            action = "logged_in"
+            user_id = existing_user["id"]
+            cursor.execute(
+                "UPDATE users SET last_login_at = ?, current_session_id = ? WHERE id = ?;",
+                (iso_now, session_id, user_id),
+            )
+        else:
+            action = "registered"
+            cursor.execute(
+                "INSERT INTO users (mobile, created_at, last_login_at, current_session_id) VALUES (?, ?, ?, ?);",
+                (norm_mobile, iso_now, iso_now, session_id),
+            )
+            user_id = cursor.lastrowid
+
+    token = create_access_token(user_id=user_id, mobile=norm_mobile, session_id=session_id)
+
+    return {
+        "status": "authenticated",
+        "action": action,
+        "token": token,
+        "session_id": session_id,
+        "user": {
+            "id": user_id,
+            "mobile": norm_mobile,
+        },
+        "redirect": "/dashboard",
+        "message": f"Successfully {action}. Any previous device sessions have been terminated.",
+    }
+
 
 @router.post("/send-otp", summary="Send 6-Digit Mobile OTP", status_code=status.HTTP_200_OK)
 async def send_otp(req: SendOTPRequest):
@@ -586,20 +674,24 @@ async def verify_otp(req: VerifyOTPRequest):
         cursor.execute("SELECT id, created_at FROM users WHERE mobile = ?;", (norm_mobile,))
         existing_user = cursor.fetchone()
 
+        session_id = secrets.token_hex(16)
         if existing_user:
             action = "logged_in"
             user_id = existing_user["id"]
-            cursor.execute("UPDATE users SET last_login_at = ? WHERE id = ?;", (iso_now, user_id))
+            cursor.execute(
+                "UPDATE users SET last_login_at = ?, current_session_id = ? WHERE id = ?;",
+                (iso_now, session_id, user_id),
+            )
         else:
             action = "registered"
             cursor.execute(
-                "INSERT INTO users (mobile, created_at, last_login_at) VALUES (?, ?, ?);",
-                (norm_mobile, iso_now, iso_now),
+                "INSERT INTO users (mobile, created_at, last_login_at, current_session_id) VALUES (?, ?, ?, ?);",
+                (norm_mobile, iso_now, iso_now, session_id),
             )
             user_id = cursor.lastrowid
 
-    # Generate Bearer Token
-    token = create_access_token(user_id=user_id, mobile=norm_mobile)
+    # Generate Bearer Token tied to this session
+    token = create_access_token(user_id=user_id, mobile=norm_mobile, session_id=session_id)
 
     return {
         "status": "authenticated",

@@ -224,6 +224,7 @@
     const TOKEN_KEY = 'phatak_token';
     let socket = null;
     let pingStartTime = 0;
+    let sessionHeartbeatTimer = null;
 
     // 1. Authenticate On Load
     document.addEventListener('DOMContentLoaded', async () => {
@@ -239,18 +240,47 @@
         });
 
         if (!res.ok) {
-          throw new Error('Unauthorized');
+          const errData = await res.json().catch(() => ({}));
+          if (res.status === 401 && errData.detail && errData.detail.includes('another device')) {
+            alert('⚠️ Session Expired: Your account was logged in from another device.');
+          }
+          throw new Error(errData.detail || 'Unauthorized');
         }
 
         const user = await res.json();
         renderDashboard(user);
         initWebSocket();
+        startSessionHeartbeat();
       } catch (err) {
         console.warn('Auth check failed:', err);
         localStorage.removeItem(TOKEN_KEY);
         window.location.href = '/';
       }
     });
+
+    // 2. Real-Time Single-Device Session Heartbeat (Every 8 seconds)
+    function startSessionHeartbeat() {
+      if (sessionHeartbeatTimer) clearInterval(sessionHeartbeatTimer);
+      sessionHeartbeatTimer = setInterval(async () => {
+        const token = localStorage.getItem(TOKEN_KEY);
+        if (!token) return;
+
+        try {
+          const res = await fetch('/apis/auth/me', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (res.status === 401) {
+            clearInterval(sessionHeartbeatTimer);
+            localStorage.removeItem(TOKEN_KEY);
+            if (socket) socket.close();
+            alert('⚠️ Session Ended: Your account was logged in from another device.');
+            window.location.href = '/';
+          }
+        } catch (err) {
+          // Ignore network blips
+        }
+      }, 8000);
+    }
 
     function renderDashboard(user) {
       document.getElementById('authLoadingState').classList.add('hidden');
@@ -266,6 +296,7 @@
     }
 
     function handleLogout() {
+      if (sessionHeartbeatTimer) clearInterval(sessionHeartbeatTimer);
       localStorage.removeItem(TOKEN_KEY);
       if (socket) {
         socket.close();

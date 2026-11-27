@@ -253,10 +253,58 @@ def test_firebase_endpoints():
     assert res_bad.status_code == 401
 
 
+def test_direct_mobile_login_and_single_device_enforcement():
+    """
+    Tests:
+    1. Direct mobile registration and login without OTP.
+    2. Single active device enforcement: logging in on Device B terminates Device A's session.
+    """
+    test_mobile = "9876500099"
+    norm_mobile = "+919876500099"
+
+    # Clean DB
+    with get_db() as conn:
+        conn.execute("DELETE FROM users WHERE mobile = ?", (norm_mobile,))
+
+    # 1. Device A: Initial registration / login
+    res_a = client.post("/apis/auth/login", json={"mobile": test_mobile})
+    assert res_a.status_code == 200, res_a.text
+    data_a = res_a.json()
+    assert data_a["status"] == "authenticated"
+    assert data_a["action"] == "registered"
+    assert data_a["redirect"] == "/dashboard"
+    token_a = data_a["token"]
+
+    # Device A can access /apis/auth/me
+    me_a = client.get("/apis/auth/me", headers={"Authorization": f"Bearer {token_a}"})
+    assert me_a.status_code == 200
+    assert me_a.json()["mobile"] == norm_mobile
+
+    # 2. Device B: Logs in with the SAME mobile number
+    res_b = client.post("/apis/auth/login", json={"mobile": test_mobile})
+    assert res_b.status_code == 200, res_b.text
+    data_b = res_b.json()
+    assert data_b["status"] == "authenticated"
+    assert data_b["action"] == "logged_in"
+    token_b = data_b["token"]
+
+    # Device B can access /apis/auth/me (Active session)
+    me_b = client.get("/apis/auth/me", headers={"Authorization": f"Bearer {token_b}"})
+    assert me_b.status_code == 200
+    assert me_b.json()["mobile"] == norm_mobile
+
+    # 3. Device A tries to access /apis/auth/me again -> MUST BE TERMINATED!
+    stale_me_a = client.get("/apis/auth/me", headers={"Authorization": f"Bearer {token_a}"})
+    assert stale_me_a.status_code == 401
+    assert "another device" in stale_me_a.json()["detail"].lower()
+
+
 if __name__ == "__main__":
     print("Running Phatak Punjab Auth Test Suite...")
     test_swagger_api_route()
     print("✓ test_swagger_api_route passed")
+    test_direct_mobile_login_and_single_device_enforcement()
+    print("✓ test_direct_mobile_login_and_single_device_enforcement passed")
     test_firebase_endpoints()
     print("✓ test_firebase_endpoints passed")
     test_normalize_indian_mobile()

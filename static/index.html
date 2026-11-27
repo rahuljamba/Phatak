@@ -16,10 +16,6 @@
   
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  
-  <!-- Google Firebase App & Auth SDK (v10 compat) -->
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
   <script>
     tailwind.config = {
       theme: {
@@ -480,9 +476,6 @@
     </div>
   </footer>
 
-  <!-- Invisible reCAPTCHA container for Google Firebase Phone Auth -->
-  <div id="recaptcha-container"></div>
-
   <!-- ========================================================================= -->
   <!-- Mobile OTP Login / Register Modal                                         -->
   <!-- ========================================================================= -->
@@ -504,7 +497,7 @@
           </div>
           <h3 class="text-xl font-extrabold text-slate-900 tracking-tight">Sign In or Register</h3>
           <p class="text-xs sm:text-sm text-slate-500 mt-1">
-            Enter your 10-digit Indian mobile number. We will send a secure 6-digit OTP.
+            Enter your 10-digit Indian mobile number. We will send a secure 6-digit OTP via Fast2SMS.
           </p>
         </div>
 
@@ -543,7 +536,7 @@
         </button>
 
         <p class="text-[11px] text-center text-slate-400">
-          Zero push notification spam • Safe HMAC authentication
+          Fast2SMS Gateway • Safe HMAC Authentication
         </p>
       </div>
 
@@ -558,9 +551,12 @@
           <h3 class="text-xl font-extrabold text-slate-900 tracking-tight">Enter Verification Code</h3>
           <p class="text-xs sm:text-sm text-slate-500 mt-1">
             Sent to <span id="otpTargetMobile" class="font-mono font-bold text-slate-800">+91 --</span>
-            <span id="userStatusBadge" class="ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">SMS Sent</span>
+            <span id="userStatusBadge" class="ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">SMS Dispatched</span>
           </p>
         </div>
+
+        <!-- Dynamic Notice Banner (Fast2SMS Gateway Status or Dev Helper) -->
+        <div id="otpNoticeBanner" class="hidden text-xs rounded-xl p-3 border"></div>
 
         <div>
           <label for="otpInput" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
@@ -620,27 +616,9 @@
     const TOKEN_KEY = 'phatak_token';
     let currentMobile = '';
     let timerInterval = null;
-    let isFirebaseReady = false;
-    let firebaseConfirmation = null;
 
-    function getOrInitRecaptcha() {
-      if (!window.recaptchaVerifier) {
-        window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
-          size: 'invisible',
-          callback: function(response) {
-            console.log('Invisible reCAPTCHA verified.');
-          },
-          'expired-callback': function() {
-            console.warn('reCAPTCHA expired.');
-          }
-        });
-      }
-      return window.recaptchaVerifier;
-    }
-
-    // Check Auth State and Initialize Firebase on Page Load
+    // Check Auth State on Page Load
     document.addEventListener('DOMContentLoaded', async () => {
-      // 1. Check existing session
       const token = localStorage.getItem(TOKEN_KEY);
       if (token) {
         try {
@@ -674,27 +652,9 @@
           console.warn('Session verification error:', e);
         }
       }
-
-      // 2. Load and Initialize Firebase Phone Auth
-      try {
-        const fbRes = await fetch('/apis/auth/firebase-config');
-        if (fbRes.ok) {
-          const fbConfig = await fbRes.json();
-          if (fbConfig.enabled && typeof firebase !== 'undefined') {
-            if (firebase.apps.length === 0) {
-              firebase.initializeApp(fbConfig);
-            }
-            isFirebaseReady = true;
-            console.log('✓ Google Firebase Phone Auth initialized for project:', fbConfig.projectId);
-          }
-        }
-      } catch (err) {
-        console.warn('Firebase config error:', err);
-      }
     });
 
     function openAuthModal() {
-      // If already logged in, redirect straight to dashboard
       if (localStorage.getItem(TOKEN_KEY)) {
         window.location.href = '/dashboard';
         return;
@@ -719,15 +679,16 @@
 
     function backToMobileStep() {
       clearInterval(timerInterval);
-      firebaseConfirmation = null;
       document.getElementById('stepMobile').classList.remove('hidden');
       document.getElementById('stepOtp').classList.add('hidden');
       document.getElementById('stepSuccess').classList.add('hidden');
       document.getElementById('mobileError').classList.add('hidden');
       document.getElementById('otpError').classList.add('hidden');
+      const notice = document.getElementById('otpNoticeBanner');
+      if (notice) notice.classList.add('hidden');
     }
 
-    // Step 1: Send Real SMS OTP via Google Firebase
+    // Step 1: Send Dynamic 6-Digit OTP via Backend & Fast2SMS Gateway
     async function handleSendOtp(isResend = false) {
       let rawMobile = isResend ? currentMobile.replace('+91', '') : document.getElementById('mobileInput').value.trim();
       const mobileError = document.getElementById('mobileError');
@@ -735,6 +696,7 @@
       const sendOtpBtn = document.getElementById('sendOtpBtn');
       const sendOtpBtnText = document.getElementById('sendOtpBtnText');
       const sendOtpSpinner = document.getElementById('sendOtpSpinner');
+      const noticeBanner = document.getElementById('otpNoticeBanner');
 
       mobileError.classList.add('hidden');
 
@@ -745,70 +707,61 @@
       }
 
       sendOtpBtn.disabled = true;
-      sendOtpBtnText.textContent = isResend ? 'Resending SMS...' : 'Sending SMS via Google...';
+      sendOtpBtnText.textContent = isResend ? 'Resending SMS...' : 'Sending SMS...';
       sendOtpSpinner.classList.remove('hidden');
 
-      // Google Firebase Phone Auth
-      if (isFirebaseReady && typeof firebase !== 'undefined') {
-        try {
-          const fullMobile = '+91' + rawMobile.slice(-10);
-          const verifier = getOrInitRecaptcha();
-          
-          firebaseConfirmation = await firebase.auth().signInWithPhoneNumber(fullMobile, verifier);
-          currentMobile = fullMobile;
+      try {
+        const res = await fetch('/apis/auth/send-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mobile: rawMobile })
+        });
 
-          // Switch to Step 2
-          document.getElementById('stepMobile').classList.add('hidden');
-          document.getElementById('stepOtp').classList.remove('hidden');
-          document.getElementById('otpTargetMobile').textContent = fullMobile;
-          
-          startOtpCountdown(300);
-
-          const otpInput = document.getElementById('otpInput');
-          otpInput.value = '';
-          setTimeout(() => otpInput.focus(), 150);
-          return;
-        } catch (fbErr) {
-          console.error('Firebase Phone Auth Error:', fbErr);
-
-          // Reset reCAPTCHA for next attempt
-          if (window.recaptchaVerifier) {
-            try {
-              window.recaptchaVerifier.render().then(widgetId => {
-                if (typeof grecaptcha !== 'undefined') grecaptcha.reset(widgetId);
-              }).catch(() => {});
-            } catch(e) {}
-          }
-
-          let msg = fbErr.message || 'Failed to send SMS.';
-          if (fbErr.code === 'auth/operation-not-allowed') {
-            msg = 'Phone Authentication is not enabled in Firebase Console (multichatnew). Please go to Firebase Console -> Authentication -> Sign-in method and enable "Phone".';
-          } else if (fbErr.code === 'auth/unauthorized-domain') {
-            msg = 'Domain (' + window.location.hostname + ') is not authorized. Please add it to Firebase Console -> Authentication -> Settings -> Authorized domains.';
-          } else if (fbErr.code === 'auth/invalid-phone-number') {
-            msg = 'Invalid Indian phone number. Please enter a valid 10-digit mobile number.';
-          } else if (fbErr.code === 'auth/quota-exceeded') {
-            msg = 'Firebase SMS quota exceeded for today.';
-          } else if (fbErr.code === 'auth/too-many-requests') {
-            msg = 'Too many requests. Please wait a few minutes before trying again.';
-          }
-
-          mobileErrorText.textContent = msg;
-          mobileError.classList.remove('hidden');
-          return;
-        } finally {
-          sendOtpBtn.disabled = false;
-          sendOtpBtnText.textContent = 'Send 6-Digit OTP';
-          sendOtpSpinner.classList.add('hidden');
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.detail || 'Failed to dispatch OTP. Please check mobile number.');
         }
-      }
 
-      // If Firebase was not ready (e.g. offline)
-      mobileErrorText.textContent = 'Google Firebase is initializing. Please try again in 2 seconds.';
-      mobileError.classList.remove('hidden');
-      sendOtpBtn.disabled = false;
-      sendOtpBtnText.textContent = 'Send 6-Digit OTP';
-      sendOtpSpinner.classList.add('hidden');
+        currentMobile = data.mobile;
+
+        // Switch to Step 2
+        document.getElementById('stepMobile').classList.add('hidden');
+        document.getElementById('stepOtp').classList.remove('hidden');
+        document.getElementById('otpTargetMobile').textContent = currentMobile;
+
+        const badge = document.getElementById('userStatusBadge');
+        if (data.sms_sent) {
+          badge.className = 'ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200';
+          badge.textContent = 'SMS Sent via Fast2SMS';
+          if (noticeBanner) noticeBanner.classList.add('hidden');
+        } else {
+          badge.className = 'ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200';
+          badge.textContent = 'Fast2SMS Status';
+          if (noticeBanner) {
+            noticeBanner.className = 'text-xs rounded-xl p-3 border bg-amber-50 border-amber-200 text-amber-900 space-y-1 block';
+            let html = `<div><strong>Fast2SMS Gateway:</strong> ${data.sms_message || 'Verification pending'}</div>`;
+            if (data.dev_otp) {
+              html += `<div class="mt-1 pt-1 border-t border-amber-200 font-mono text-[11px]">Testing OTP: <strong>${data.dev_otp}</strong></div>`;
+            }
+            noticeBanner.innerHTML = html;
+          }
+        }
+
+        startOtpCountdown(data.expires_in_seconds || 300);
+
+        const otpInput = document.getElementById('otpInput');
+        otpInput.value = '';
+        setTimeout(() => otpInput.focus(), 150);
+
+      } catch (err) {
+        console.error('Send OTP Error:', err);
+        mobileErrorText.textContent = err.message || 'Could not send OTP.';
+        mobileError.classList.remove('hidden');
+      } finally {
+        sendOtpBtn.disabled = false;
+        sendOtpBtnText.textContent = 'Send 6-Digit OTP';
+        sendOtpSpinner.classList.add('hidden');
+      }
     }
 
     function startOtpCountdown(seconds) {
@@ -835,13 +788,13 @@
       
       // Allow resend after 30 seconds
       setTimeout(() => {
-        if (resendBtn.disabled && remaining > 0) {
+        if (resendBtn && remaining > 0) {
           resendBtn.disabled = false;
         }
       }, 30000);
     }
 
-    // Step 2: Verify Real SMS OTP
+    // Step 2: Verify Dynamic OTP against HMAC Hash in Database
     async function handleVerifyOtp() {
       const otp = document.getElementById('otpInput').value.trim();
       const otpError = document.getElementById('otpError');
@@ -853,37 +806,28 @@
       otpError.classList.add('hidden');
 
       if (!otp || otp.length !== 6) {
-        otpErrorText.textContent = 'Please enter all 6 digits of the OTP received on your mobile';
+        otpErrorText.textContent = 'Please enter all 6 digits of the OTP';
         otpError.classList.remove('hidden');
         return;
       }
 
       verifyBtn.disabled = true;
-      verifyBtnText.textContent = 'Verifying with Google...';
+      verifyBtnText.textContent = 'Verifying...';
       verifySpinner.classList.remove('hidden');
 
       try {
-        if (!firebaseConfirmation) {
-          throw new Error('Verification session expired. Please request a new OTP.');
-        }
-
-        // Verify with Google Firebase
-        const cred = await firebaseConfirmation.confirm(otp);
-        const idToken = await cred.user.getIdToken();
-
-        // Exchange for backend session token
-        const res = await fetch('/apis/auth/firebase-login', {
+        const res = await fetch('/apis/auth/verify-otp', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id_token: idToken })
+          body: JSON.stringify({ mobile: currentMobile, otp: otp })
         });
 
         const authResult = await res.json();
         if (!res.ok) {
-          throw new Error(authResult.detail || 'Firebase verification failed on server');
+          throw new Error(authResult.detail || 'Invalid or expired OTP entered.');
         }
 
-        // Save session token
+        // Save session token in localStorage
         localStorage.setItem(TOKEN_KEY, authResult.token);
 
         // Show Success Step
@@ -891,20 +835,14 @@
         document.getElementById('stepOtp').classList.add('hidden');
         document.getElementById('stepSuccess').classList.remove('hidden');
 
-        // Redirect
+        // Redirect to /dashboard
         setTimeout(() => {
           window.location.href = authResult.redirect || '/dashboard';
         }, 600);
 
       } catch (err) {
         console.error('Verification error:', err);
-        let msg = err.message || 'Invalid or expired verification code';
-        if (err.code === 'auth/invalid-verification-code') {
-          msg = 'Incorrect 6-digit OTP entered. Please check your SMS and try again.';
-        } else if (err.code === 'auth/code-expired') {
-          msg = 'Verification code has expired. Please click Resend OTP.';
-        }
-        otpErrorText.textContent = msg;
+        otpErrorText.textContent = err.message || 'Invalid verification code';
         otpError.classList.remove('hidden');
       } finally {
         verifyBtn.disabled = false;

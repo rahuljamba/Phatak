@@ -34,6 +34,9 @@ TOKEN_EXPIRY_SECONDS = 86400 * 30  # 30 days
 # Router definition
 router = APIRouter(prefix="/apis/auth", tags=["Authentication"])
 
+# Fast2SMS Gateway Configuration
+DEFAULT_FAST2SMS_API_KEY = "8FedZJlkWMsixwWiWyCbj3QyF3QedIVBqFEMWMOeRmvhCPLq9ZKQgpjcsSVQrLdaShTr5mdXRxmUpdNK"
+
 # Default Firebase Configuration (multichatnew project)
 DEFAULT_FIREBASE_API_KEY = "AIzaSyAMSVpPM1x3w68qCRrxQ-RXthvM5NsCLt4"
 DEFAULT_FIREBASE_AUTH_DOMAIN = "multichatnew.firebaseapp.com"
@@ -258,6 +261,88 @@ def verify_firebase_id_token(id_token: str) -> Optional[Dict[str, Any]]:
     return None
 
 
+def send_fast2sms_otp(mobile_10_digits: str, otp: str) -> tuple:
+    """
+    Dispatches a real dynamic 6-digit OTP SMS to an Indian mobile number
+    using the Fast2SMS Gateway.
+    Tries:
+      1. Smart OTP route (/dev/otp/send) if FAST2SMS_OTP_ID is configured.
+      2. Quick OTP route (/dev/bulkV2 with route="otp").
+    Returns (success: bool, message: str).
+    """
+    api_key = os.environ.get("FAST2SMS_API_KEY", DEFAULT_FAST2SMS_API_KEY).strip()
+    if not api_key:
+        return False, "Fast2SMS API Key is not configured."
+
+    clean_digits = re.sub(r"\D", "", str(mobile_10_digits))[-10:]
+    if len(clean_digits) != 10:
+        return False, f"Invalid 10-digit mobile number: {mobile_10_digits}"
+
+    # 1. Smart OTP route if FAST2SMS_OTP_ID is provided
+    otp_id = os.environ.get("FAST2SMS_OTP_ID", "").strip()
+    if otp_id:
+        try:
+            url = "https://www.fast2sms.com/dev/otp/send"
+            payload = {
+                "mobile": clean_digits,
+                "otp_id": otp_id,
+                "otp": otp,
+                "otp_length": 6,
+                "otp_expiry": 5,
+            }
+            req = urllib.request.Request(
+                url,
+                data=json.dumps(payload).encode("utf-8"),
+                headers={
+                    "authorization": api_key,
+                    "Content-Type": "application/json",
+                },
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=8.0) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                if data.get("return") is True or data.get("status_code") == 200:
+                    logger.info(f"Fast2SMS Smart OTP sent to {clean_digits}")
+                    return True, "OTP successfully delivered via SMS."
+        except Exception as e:
+            logger.warning(f"Fast2SMS Smart OTP attempt failed: {e}")
+
+    # 2. Quick OTP route (bulkV2 route="otp")
+    try:
+        url = "https://www.fast2sms.com/dev/bulkV2"
+        payload = {
+            "variables_values": otp,
+            "route": "otp",
+            "numbers": clean_digits,
+        }
+        req = urllib.request.Request(
+            url,
+            data=json.dumps(payload).encode("utf-8"),
+            headers={
+                "authorization": api_key,
+                "Content-Type": "application/json",
+            },
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=8.0) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            logger.info(f"Fast2SMS bulkV2 response for {clean_digits}: {data}")
+            if data.get("return") is True:
+                return True, "OTP successfully delivered via Fast2SMS."
+            return False, data.get("message", "Fast2SMS returned error.")
+    except urllib.error.HTTPError as e:
+        try:
+            err_body = json.loads(e.read().decode("utf-8"))
+            msg = err_body.get("message", f"Fast2SMS HTTP {e.code}")
+        except Exception:
+            msg = f"Fast2SMS HTTP {e.code}: {e.reason}"
+        logger.warning(f"Fast2SMS HTTP error for {clean_digits}: {msg}")
+        return False, msg
+    except Exception as e:
+        logger.warning(f"Fast2SMS connection error for {clean_digits}: {e}")
+        return False, str(e)
+
+
 # ============================================================================
 # Pydantic Request / Response Models
 # ============================================================================
@@ -368,18 +453,24 @@ async def send_otp(req: SendOTPRequest):
                 created_at = excluded.created_at;
         """, (norm_mobile, token_hash, salt, expires_at, now))
 
+    # Dispatch real dynamic OTP via Fast2SMS
+    clean_digits = norm_mobile.replace("+91", "")
+    sms_ok, sms_msg = send_fast2sms_otp(clean_digits, otp)
+
     resp: Dict[str, Any] = {
         "status": "ok",
         "mobile": norm_mobile,
         "is_new_user": is_new_user,
+        "sms_sent": sms_ok,
+        "sms_message": sms_msg,
         "expires_in_seconds": OTP_EXPIRY_SECONDS,
-        "message": f"OTP successfully sent to {norm_mobile}.",
+        "message": f"OTP successfully sent to {norm_mobile} via Fast2SMS." if sms_ok else f"OTP generated. Fast2SMS: {sms_msg}",
     }
 
-    # Include dev_otp for rapid local / QA testing when not in strict production mode
-    if ENV_MODE != "prod":
+    # Include dev_otp if SMS delivery was unsuccessful or when ENV_MODE != 'prod'
+    if not sms_ok or ENV_MODE != "prod":
         resp["dev_otp"] = otp
-        logger.info(f"[DEV MODE] Generated OTP for {norm_mobile}: {otp}")
+        logger.info(f"Generated OTP for {norm_mobile}: {otp} (SMS sent={sms_ok}, info={sms_msg})")
 
     return resp
 

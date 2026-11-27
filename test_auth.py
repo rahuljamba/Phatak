@@ -299,12 +299,55 @@ def test_direct_mobile_login_and_single_device_enforcement():
     assert "another device" in stale_me_a.json()["detail"].lower()
 
 
+def test_admin_portal_and_location_stats():
+    """
+    Tests:
+    1. /admin endpoint serves static/admin.html (200 OK).
+    2. /apis/admin/stats returns valid JSON with total_users, location_distribution (with % and counts), and user list.
+    """
+    # 1. Admin Page UI Route
+    res_admin_ui = client.get("/admin")
+    assert res_admin_ui.status_code == 200, res_admin_ui.text
+    assert "Admin Portal" in res_admin_ui.text
+    assert "locationPieChart" in res_admin_ui.text
+
+    # 2. Admin Stats API
+    res_stats = client.get("/apis/admin/stats")
+    assert res_stats.status_code == 200, res_stats.text
+    stats = res_stats.json()
+    assert stats["status"] == "success"
+    assert stats["total_users"] > 0
+    assert "location_distribution" in stats
+    assert len(stats["location_distribution"]) > 0
+
+    # Verify percentages in location distribution
+    total_pct = sum(item["percentage"] for item in stats["location_distribution"])
+    assert 99.0 <= total_pct <= 101.0, f"Total percentage should sum to ~100%, got {total_pct}"
+
+    for item in stats["location_distribution"]:
+        assert "district" in item
+        assert "count" in item
+        assert item["count"] > 0
+        assert "percentage" in item
+        assert item["percentage"] >= 0
+
+    # Verify users list
+    assert "users" in stats
+    assert len(stats["users"]) > 0
+    first_user = stats["users"][0]
+    assert "id" in first_user
+    assert "mobile" in first_user
+    assert "district" in first_user
+
+
 if __name__ == "__main__":
     print("Running Phatak Punjab Auth Test Suite...")
     test_swagger_api_route()
     print("✓ test_swagger_api_route passed")
     test_direct_mobile_login_and_single_device_enforcement()
     print("✓ test_direct_mobile_login_and_single_device_enforcement passed")
+    test_admin_portal_and_location_stats()
+    print("✓ test_admin_portal_and_location_stats passed")
     test_firebase_endpoints()
     print("✓ test_firebase_endpoints passed")
     test_normalize_indian_mobile()

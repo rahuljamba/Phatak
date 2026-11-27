@@ -19,9 +19,10 @@ BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
 STATIC_INDEX = STATIC_DIR / "index.html"
 STATIC_DASHBOARD = STATIC_DIR / "dashboard.html"
+STATIC_ADMIN = STATIC_DIR / "admin.html"
 
-# Import authentication router
-from auth import router as auth_router
+# Import authentication and admin routers
+from auth import router as auth_router, admin_router
 
 app = FastAPI(
     title="Phatak Punjab Backend",
@@ -40,8 +41,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount authentication router
+# Mount authentication & admin routers
 app.include_router(auth_router)
+app.include_router(admin_router)
 
 # Mount static files directory if it exists
 if STATIC_DIR.exists():
@@ -231,11 +233,22 @@ async def get_index():
 
 @app.get("/dashboard", summary="User Dashboard", tags=["Web Dashboard"])
 async def get_dashboard():
-    """Serves the authenticated user dashboard."""
+    """Serves the user dashboard."""
     if STATIC_DASHBOARD.exists():
         return FileResponse(str(STATIC_DASHBOARD), media_type="text/html")
     return JSONResponse(
         {"message": "dashboard.html not found.", "status": "error"},
+        status_code=404,
+    )
+
+
+@app.get("/admin", summary="Admin Management Portal", tags=["Admin Portal"])
+async def get_admin():
+    """Serves the Admin Portal displaying registered users and location pie chart."""
+    if STATIC_ADMIN.exists():
+        return FileResponse(str(STATIC_ADMIN), media_type="text/html")
+    return JSONResponse(
+        {"message": "admin.html not found.", "status": "error"},
         status_code=404,
     )
 

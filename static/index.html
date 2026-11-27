@@ -480,6 +480,9 @@
     </div>
   </footer>
 
+  <!-- Invisible reCAPTCHA container for Google Firebase Phone Auth -->
+  <div id="recaptcha-container"></div>
+
   <!-- ========================================================================= -->
   <!-- Mobile OTP Login / Register Modal                                         -->
   <!-- ========================================================================= -->
@@ -492,9 +495,6 @@
       <button onclick="closeAuthModal()" class="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-colors">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
       </button>
-
-      <!-- Invisible reCAPTCHA container for Google Firebase Phone Auth -->
-      <div id="recaptcha-container"></div>
 
       <!-- STEP 1: Enter Mobile Number -->
       <div id="stepMobile" class="space-y-5">
@@ -558,19 +558,8 @@
           <h3 class="text-xl font-extrabold text-slate-900 tracking-tight">Enter Verification Code</h3>
           <p class="text-xs sm:text-sm text-slate-500 mt-1">
             Sent to <span id="otpTargetMobile" class="font-mono font-bold text-slate-800">+91 --</span>
-            <span id="userStatusBadge" class="ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">New User</span>
+            <span id="userStatusBadge" class="ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">SMS Sent</span>
           </p>
-        </div>
-
-        <!-- Dev Mode OTP Helper (shows during dev testing) -->
-        <div id="devOtpBanner" class="hidden p-2.5 rounded-xl bg-orange-50 border border-orange-200 text-xs text-orange-800 flex items-center justify-between">
-          <div class="flex items-center space-x-1.5 font-mono">
-            <span>⚡ Dev OTP:</span>
-            <strong id="devOtpValue" class="text-orange-950 font-black">123456</strong>
-          </div>
-          <button onclick="autoFillDevOtp()" class="px-2 py-0.5 text-[10px] font-bold bg-orange-200 hover:bg-orange-300 text-orange-900 rounded-md transition-colors">
-            Auto-fill
-          </button>
         </div>
 
         <div>
@@ -631,10 +620,23 @@
     const TOKEN_KEY = 'phatak_token';
     let currentMobile = '';
     let timerInterval = null;
-    let devOtpStored = '';
     let isFirebaseReady = false;
     let firebaseConfirmation = null;
-    let appVerifier = null;
+
+    function getOrInitRecaptcha() {
+      if (!window.recaptchaVerifier) {
+        window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+          size: 'invisible',
+          callback: function(response) {
+            console.log('Invisible reCAPTCHA verified.');
+          },
+          'expired-callback': function() {
+            console.warn('reCAPTCHA expired.');
+          }
+        });
+      }
+      return window.recaptchaVerifier;
+    }
 
     // Check Auth State and Initialize Firebase on Page Load
     document.addEventListener('DOMContentLoaded', async () => {
@@ -673,22 +675,21 @@
         }
       }
 
-      // 2. Load Firebase Phone Auth configuration
+      // 2. Load and Initialize Firebase Phone Auth
       try {
         const fbRes = await fetch('/apis/auth/firebase-config');
         if (fbRes.ok) {
           const fbConfig = await fbRes.json();
-          if (fbConfig.enabled && typeof firebase !== 'undefined' && firebase.apps.length === 0) {
-            firebase.initializeApp(fbConfig);
-            appVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
-              size: 'invisible'
-            });
+          if (fbConfig.enabled && typeof firebase !== 'undefined') {
+            if (firebase.apps.length === 0) {
+              firebase.initializeApp(fbConfig);
+            }
             isFirebaseReady = true;
             console.log('✓ Google Firebase Phone Auth initialized for project:', fbConfig.projectId);
           }
         }
       } catch (err) {
-        console.warn('Firebase config unavailable, using standard local OTP flow:', err);
+        console.warn('Firebase config error:', err);
       }
     });
 
@@ -726,7 +727,7 @@
       document.getElementById('otpError').classList.add('hidden');
     }
 
-    // Step 1: Send OTP (Google Firebase or Dev Mode Fallback)
+    // Step 1: Send Real SMS OTP via Google Firebase
     async function handleSendOtp(isResend = false) {
       let rawMobile = isResend ? currentMobile.replace('+91', '') : document.getElementById('mobileInput').value.trim();
       const mobileError = document.getElementById('mobileError');
@@ -738,23 +739,22 @@
       mobileError.classList.add('hidden');
 
       if (!rawMobile || rawMobile.length < 10) {
-        mobileErrorText.textContent = 'Please enter your 10-digit mobile number';
+        mobileErrorText.textContent = 'Please enter a valid 10-digit Indian mobile number';
         mobileError.classList.remove('hidden');
         return;
       }
 
       sendOtpBtn.disabled = true;
-      sendOtpBtnText.textContent = isResend ? 'Resending...' : (isFirebaseReady ? 'Sending Google SMS...' : 'Sending OTP...');
+      sendOtpBtnText.textContent = isResend ? 'Resending SMS...' : 'Sending SMS via Google...';
       sendOtpSpinner.classList.remove('hidden');
 
-      // 1. Google Firebase Phone Auth (when configured)
+      // Google Firebase Phone Auth
       if (isFirebaseReady && typeof firebase !== 'undefined') {
         try {
           const fullMobile = '+91' + rawMobile.slice(-10);
-          if (!appVerifier) {
-            appVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', { size: 'invisible' });
-          }
-          firebaseConfirmation = await firebase.auth().signInWithPhoneNumber(fullMobile, appVerifier);
+          const verifier = getOrInitRecaptcha();
+          
+          firebaseConfirmation = await firebase.auth().signInWithPhoneNumber(fullMobile, verifier);
           currentMobile = fullMobile;
 
           // Switch to Step 2
@@ -762,11 +762,6 @@
           document.getElementById('stepOtp').classList.remove('hidden');
           document.getElementById('otpTargetMobile').textContent = fullMobile;
           
-          const badge = document.getElementById('userStatusBadge');
-          badge.textContent = 'Google Firebase SMS Active';
-          badge.className = 'ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200';
-          
-          document.getElementById('devOtpBanner').classList.add('hidden');
           startOtpCountdown(300);
 
           const otpInput = document.getElementById('otpInput');
@@ -774,86 +769,46 @@
           setTimeout(() => otpInput.focus(), 150);
           return;
         } catch (fbErr) {
-          console.warn('Firebase Phone Auth attempt failed, falling back to local backend:', fbErr);
-          if (appVerifier && appVerifier.render) {
-            try { appVerifier.render().then(widgetId => grecaptcha.reset(widgetId)); } catch(e){}
+          console.error('Firebase Phone Auth Error:', fbErr);
+
+          // Reset reCAPTCHA for next attempt
+          if (window.recaptchaVerifier) {
+            try {
+              window.recaptchaVerifier.render().then(widgetId => {
+                if (typeof grecaptcha !== 'undefined') grecaptcha.reset(widgetId);
+              }).catch(() => {});
+            } catch(e) {}
           }
-          if (fbErr.code === 'auth/invalid-phone-number') {
-            mobileErrorText.textContent = 'Invalid Indian phone number format';
-            mobileError.classList.remove('hidden');
-            sendOtpBtn.disabled = false;
-            sendOtpBtnText.textContent = 'Send 6-Digit OTP';
-            sendOtpSpinner.classList.add('hidden');
-            return;
+
+          let msg = fbErr.message || 'Failed to send SMS.';
+          if (fbErr.code === 'auth/operation-not-allowed') {
+            msg = 'Phone Authentication is not enabled in Firebase Console (multichatnew). Please go to Firebase Console -> Authentication -> Sign-in method and enable "Phone".';
+          } else if (fbErr.code === 'auth/unauthorized-domain') {
+            msg = 'Domain (' + window.location.hostname + ') is not authorized. Please add it to Firebase Console -> Authentication -> Settings -> Authorized domains.';
+          } else if (fbErr.code === 'auth/invalid-phone-number') {
+            msg = 'Invalid Indian phone number. Please enter a valid 10-digit mobile number.';
+          } else if (fbErr.code === 'auth/quota-exceeded') {
+            msg = 'Firebase SMS quota exceeded for today.';
+          } else if (fbErr.code === 'auth/too-many-requests') {
+            msg = 'Too many requests. Please wait a few minutes before trying again.';
           }
+
+          mobileErrorText.textContent = msg;
+          mobileError.classList.remove('hidden');
+          return;
+        } finally {
+          sendOtpBtn.disabled = false;
+          sendOtpBtnText.textContent = 'Send 6-Digit OTP';
+          sendOtpSpinner.classList.add('hidden');
         }
       }
 
-      // 2. Standard Dev / Local Backend Flow (reliable fallback)
-      try {
-        const res = await fetch('/apis/auth/send-otp', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ mobile: rawMobile })
-        });
-
-        const data = await res.json();
-
-        if (!res.ok) {
-          throw new Error(data.detail || 'Failed to send OTP');
-        }
-
-        currentMobile = data.mobile;
-        devOtpStored = data.dev_otp || '';
-        firebaseConfirmation = null;
-
-        // Switch to Step 2
-        document.getElementById('stepMobile').classList.add('hidden');
-        document.getElementById('stepOtp').classList.remove('hidden');
-        document.getElementById('otpTargetMobile').textContent = data.mobile;
-        
-        // Badge
-        const badge = document.getElementById('userStatusBadge');
-        if (data.is_new_user) {
-          badge.textContent = 'New Account';
-          badge.className = 'ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200';
-        } else {
-          badge.textContent = 'Existing User';
-          badge.className = 'ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200';
-        }
-
-        // Dev Mode helper
-        const devBanner = document.getElementById('devOtpBanner');
-        if (data.dev_otp) {
-          document.getElementById('devOtpValue').textContent = data.dev_otp;
-          devBanner.classList.remove('hidden');
-        } else {
-          devBanner.classList.add('hidden');
-        }
-
-        // Start Countdown
-        startOtpCountdown(data.expires_in_seconds || 300);
-
-        // Clear OTP Input
-        const otpInput = document.getElementById('otpInput');
-        otpInput.value = '';
-        setTimeout(() => otpInput.focus(), 150);
-
-      } catch (err) {
-        mobileErrorText.textContent = err.message || 'Error sending OTP';
-        mobileError.classList.remove('hidden');
-      } finally {
-        sendOtpBtn.disabled = false;
-        sendOtpBtnText.textContent = 'Send 6-Digit OTP';
-        sendOtpSpinner.classList.add('hidden');
-      }
-    }
-
-    function autoFillDevOtp() {
-      if (!devOtpStored) return;
-      const otpInput = document.getElementById('otpInput');
-      otpInput.value = devOtpStored;
-      handleVerifyOtp();
+      // If Firebase was not ready (e.g. offline)
+      mobileErrorText.textContent = 'Google Firebase is initializing. Please try again in 2 seconds.';
+      mobileError.classList.remove('hidden');
+      sendOtpBtn.disabled = false;
+      sendOtpBtnText.textContent = 'Send 6-Digit OTP';
+      sendOtpSpinner.classList.add('hidden');
     }
 
     function startOtpCountdown(seconds) {
@@ -886,7 +841,7 @@
       }, 30000);
     }
 
-    // Step 2: Verify OTP
+    // Step 2: Verify Real SMS OTP
     async function handleVerifyOtp() {
       const otp = document.getElementById('otpInput').value.trim();
       const otpError = document.getElementById('otpError');
@@ -898,46 +853,34 @@
       otpError.classList.add('hidden');
 
       if (!otp || otp.length !== 6) {
-        otpErrorText.textContent = 'Please enter all 6 digits of the OTP';
+        otpErrorText.textContent = 'Please enter all 6 digits of the OTP received on your mobile';
         otpError.classList.remove('hidden');
         return;
       }
 
       verifyBtn.disabled = true;
-      verifyBtnText.textContent = 'Verifying...';
+      verifyBtnText.textContent = 'Verifying with Google...';
       verifySpinner.classList.remove('hidden');
 
       try {
-        let authResult = null;
+        if (!firebaseConfirmation) {
+          throw new Error('Verification session expired. Please request a new OTP.');
+        }
 
-        // 1. Verify via Google Firebase
-        if (firebaseConfirmation) {
-          verifyBtnText.textContent = 'Verifying with Google...';
-          const cred = await firebaseConfirmation.confirm(otp);
-          const idToken = await cred.user.getIdToken();
+        // Verify with Google Firebase
+        const cred = await firebaseConfirmation.confirm(otp);
+        const idToken = await cred.user.getIdToken();
 
-          const res = await fetch('/apis/auth/firebase-login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id_token: idToken })
-          });
+        // Exchange for backend session token
+        const res = await fetch('/apis/auth/firebase-login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id_token: idToken })
+        });
 
-          authResult = await res.json();
-          if (!res.ok) {
-            throw new Error(authResult.detail || 'Firebase verification failed on server');
-          }
-        } else {
-          // 2. Standard Dev / Local Backend Verification
-          const res = await fetch('/apis/auth/verify-otp', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ mobile: currentMobile, otp: otp })
-          });
-
-          authResult = await res.json();
-          if (!res.ok) {
-            throw new Error(authResult.detail || 'Verification failed');
-          }
+        const authResult = await res.json();
+        if (!res.ok) {
+          throw new Error(authResult.detail || 'Firebase verification failed on server');
         }
 
         // Save session token
@@ -954,7 +897,14 @@
         }, 600);
 
       } catch (err) {
-        otpErrorText.textContent = err.message || 'Invalid or expired OTP';
+        console.error('Verification error:', err);
+        let msg = err.message || 'Invalid or expired verification code';
+        if (err.code === 'auth/invalid-verification-code') {
+          msg = 'Incorrect 6-digit OTP entered. Please check your SMS and try again.';
+        } else if (err.code === 'auth/code-expired') {
+          msg = 'Verification code has expired. Please click Resend OTP.';
+        }
+        otpErrorText.textContent = msg;
         otpError.classList.remove('hidden');
       } finally {
         verifyBtn.disabled = false;

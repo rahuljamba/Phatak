@@ -12,7 +12,7 @@ services:
       - key: PYTHON_VERSION
         value: 3.11.9
       - key: ENV_MODE
-        value: dev
+        value: prod
       - key: FIREBASE_API_KEY
         value: AIzaSyAMSVpPM1x3w68qCRrxQ-RXthvM5NsCLt4
       - key: FIREBASE_AUTH_DOMAIN

@@ -34,6 +34,14 @@ TOKEN_EXPIRY_SECONDS = 86400 * 30  # 30 days
 # Router definition
 router = APIRouter(prefix="/apis/auth", tags=["Authentication"])
 
+# Default Firebase Configuration (multichatnew project)
+DEFAULT_FIREBASE_API_KEY = "AIzaSyAMSVpPM1x3w68qCRrxQ-RXthvM5NsCLt4"
+DEFAULT_FIREBASE_AUTH_DOMAIN = "multichatnew.firebaseapp.com"
+DEFAULT_FIREBASE_PROJECT_ID = "multichatnew"
+DEFAULT_FIREBASE_STORAGE_BUCKET = "multichatnew.firebasestorage.app"
+DEFAULT_FIREBASE_MESSAGING_SENDER_ID = "500154591134"
+DEFAULT_FIREBASE_APP_ID = "1:500154591134:web:4d0fcf5eee5c57bd01588f"
+
 
 # ============================================================================
 # Database Management (SQLite)
@@ -200,7 +208,7 @@ def verify_firebase_id_token(id_token: str) -> Optional[Dict[str, Any]]:
     if not id_token or len(id_token) < 10:
         return None
 
-    firebase_api_key = os.environ.get("FIREBASE_API_KEY", "").strip()
+    firebase_api_key = os.environ.get("FIREBASE_API_KEY", DEFAULT_FIREBASE_API_KEY).strip()
 
     # 1. Official Google Identity Toolkit verification if API key is provided
     if firebase_api_key:
@@ -497,14 +505,14 @@ async def get_firebase_config():
     """
     Returns public Firebase configuration for client-side Phone Auth.
     """
-    api_key = os.environ.get("FIREBASE_API_KEY", "").strip()
+    api_key = os.environ.get("FIREBASE_API_KEY", DEFAULT_FIREBASE_API_KEY).strip()
     return {
         "apiKey": api_key,
-        "authDomain": os.environ.get("FIREBASE_AUTH_DOMAIN", "").strip(),
-        "projectId": os.environ.get("FIREBASE_PROJECT_ID", "").strip(),
-        "storageBucket": os.environ.get("FIREBASE_STORAGE_BUCKET", "").strip(),
-        "messagingSenderId": os.environ.get("FIREBASE_MESSAGING_SENDER_ID", "").strip(),
-        "appId": os.environ.get("FIREBASE_APP_ID", "").strip(),
+        "authDomain": os.environ.get("FIREBASE_AUTH_DOMAIN", DEFAULT_FIREBASE_AUTH_DOMAIN).strip(),
+        "projectId": os.environ.get("FIREBASE_PROJECT_ID", DEFAULT_FIREBASE_PROJECT_ID).strip(),
+        "storageBucket": os.environ.get("FIREBASE_STORAGE_BUCKET", DEFAULT_FIREBASE_STORAGE_BUCKET).strip(),
+        "messagingSenderId": os.environ.get("FIREBASE_MESSAGING_SENDER_ID", DEFAULT_FIREBASE_MESSAGING_SENDER_ID).strip(),
+        "appId": os.environ.get("FIREBASE_APP_ID", DEFAULT_FIREBASE_APP_ID).strip(),
         "enabled": bool(api_key),
     }
 

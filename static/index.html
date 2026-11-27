@@ -536,7 +536,7 @@
         </button>
 
         <p class="text-[11px] text-center text-slate-400">
-          Fast2SMS Gateway • Safe HMAC Authentication
+          100% Free • Safe HMAC SHA-256 Authentication
         </p>
       </div>
 
@@ -730,27 +730,32 @@
         document.getElementById('otpTargetMobile').textContent = currentMobile;
 
         const badge = document.getElementById('userStatusBadge');
+        const otpInput = document.getElementById('otpInput');
+
         if (data.sms_sent) {
           badge.className = 'ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200';
-          badge.textContent = 'SMS Sent via Fast2SMS';
+          badge.textContent = 'SMS Dispatched';
           if (noticeBanner) noticeBanner.classList.add('hidden');
+          otpInput.value = '';
         } else {
-          badge.className = 'ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200';
-          badge.textContent = 'Fast2SMS Status';
-          if (noticeBanner) {
-            noticeBanner.className = 'text-xs rounded-xl p-3 border bg-amber-50 border-amber-200 text-amber-900 space-y-1 block';
-            let html = `<div><strong>Fast2SMS Gateway:</strong> ${data.sms_message || 'Verification pending'}</div>`;
-            if (data.dev_otp) {
-              html += `<div class="mt-1 pt-1 border-t border-amber-200 font-mono text-[11px]">Testing OTP: <strong>${data.dev_otp}</strong></div>`;
-            }
-            noticeBanner.innerHTML = html;
+          badge.className = 'ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200';
+          badge.textContent = 'Instant Free Access';
+          if (noticeBanner && data.dev_otp) {
+            noticeBanner.className = 'text-xs rounded-xl p-3 border bg-blue-50/80 border-blue-200 text-blue-900 block space-y-1.5';
+            noticeBanner.innerHTML = `
+              <div class="flex items-center justify-between">
+                <span>🔐 <strong>Your Login OTP:</strong></span>
+                <span class="font-mono font-bold text-base bg-white px-2.5 py-0.5 rounded-lg border border-blue-200 text-blue-700 tracking-widest">${data.dev_otp}</span>
+              </div>
+              <p class="text-[11px] text-blue-600">✓ Auto-filled below. Click Verify to access your Punjab Dashboard (Totally Free).</p>
+            `;
+            otpInput.value = data.dev_otp;
+          } else {
+            otpInput.value = '';
           }
         }
 
         startOtpCountdown(data.expires_in_seconds || 300);
-
-        const otpInput = document.getElementById('otpInput');
-        otpInput.value = '';
         setTimeout(() => otpInput.focus(), 150);
 
       } catch (err) {

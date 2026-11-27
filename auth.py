@@ -499,7 +499,7 @@ async def send_otp(req: SendOTPRequest):
         "sms_sent": sms_ok,
         "sms_message": sms_msg,
         "expires_in_seconds": OTP_EXPIRY_SECONDS,
-        "message": f"OTP successfully sent to {norm_mobile} via Fast2SMS." if sms_ok else f"OTP generated. Fast2SMS: {sms_msg}",
+        "message": f"OTP successfully sent to {norm_mobile} via Fast2SMS." if sms_ok else "Secure OTP generated successfully.",
     }
 
     # Include dev_otp if SMS delivery was unsuccessful or when ENV_MODE != 'prod'

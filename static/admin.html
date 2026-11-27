@@ -7,316 +7,373 @@
   
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Chart.js for Pie / Donut Chart with Percentages -->
+  <!-- Chart.js for Location Pie / Donut Chart -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap');
     body {
       font-family: 'Plus Jakarta Sans', sans-serif;
-      background-color: #0f172a;
+      background-color: #0b0f19;
       color: #f8fafc;
     }
     .font-mono {
       font-family: 'JetBrains Mono', monospace;
     }
     .glass-card {
-      background: rgba(30, 41, 59, 0.7);
+      background: rgba(17, 24, 39, 0.75);
       backdrop-filter: blur(16px);
       border: 1px solid rgba(255, 255, 255, 0.08);
-    }
-    .glass-card-hover:hover {
-      border-color: rgba(59, 130, 246, 0.3);
-      transition: all 0.2s ease;
     }
   </style>
 </head>
 <body class="min-h-screen bg-slate-950 text-slate-100 antialiased selection:bg-blue-600 selection:text-white">
 
   <!-- ========================================================================= -->
-  <!-- Top Navigation Bar                                                        -->
+  <!-- 1. ADMIN LOGIN VIEW (Shown if not logged in)                               -->
   <!-- ========================================================================= -->
-  <header class="sticky top-0 z-40 border-b border-slate-800 bg-slate-900/80 backdrop-blur-md">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+  <div id="adminLoginView" class="min-h-screen flex items-center justify-center p-4 sm:p-6">
+    <div class="glass-card rounded-3xl p-6 sm:p-8 max-w-md w-full border border-slate-800 shadow-2xl relative">
       
       <!-- Logo & Title -->
-      <div class="flex items-center space-x-3">
-        <a href="/" class="flex items-center space-x-2.5 group">
-          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-lg shadow-lg shadow-blue-500/20 group-hover:scale-105 transition-transform">
-            🚂
+      <div class="text-center mb-8">
+        <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-2xl mx-auto shadow-lg shadow-blue-500/25 mb-4">
+          🚂
+        </div>
+        <h1 class="text-2xl font-extrabold text-white tracking-tight">Phatak Punjab</h1>
+        <div class="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-slate-800 text-slate-300 text-xs font-semibold mt-2 border border-slate-700">
+          <span>🔒</span>
+          <span>Admin Control Panel</span>
+        </div>
+        <p class="text-xs text-slate-400 mt-2">
+          Sign in to view registered users and location analytics.
+        </p>
+      </div>
+
+      <!-- Login Form -->
+      <form id="loginForm" onsubmit="handleAdminLogin(event)" class="space-y-4">
+        <!-- Error Alert -->
+        <div id="loginError" class="hidden p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-semibold flex items-center space-x-2">
+          <svg class="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+          <span id="loginErrorText">Invalid credentials</span>
+        </div>
+
+        <!-- Username Input -->
+        <div>
+          <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+            Admin Username
+          </label>
+          <input 
+            type="text" 
+            id="adminUsername" 
+            value="admin"
+            placeholder="admin" 
+            required 
+            class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm font-mono"
+          >
+        </div>
+
+        <!-- Password Input -->
+        <div>
+          <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+            Admin Password
+          </label>
+          <input 
+            type="password" 
+            id="adminPassword" 
+            placeholder="••••••••" 
+            required 
+            class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm font-mono"
+          >
+        </div>
+
+        <!-- Submit Button -->
+        <button 
+          type="submit" 
+          id="loginBtn"
+          class="w-full py-3 px-4 rounded-xl text-sm font-bold bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center space-x-2 mt-2"
+        >
+          <span id="loginBtnText">Sign In as Admin →</span>
+          <svg id="loginSpinner" class="hidden w-4 h-4 animate-spin text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+        </button>
+      </form>
+
+      <!-- Footer Help -->
+      <div class="mt-6 pt-5 border-t border-slate-800 text-center">
+        <p class="text-[11px] text-slate-500">
+          Default Admin Login: <span class="font-mono text-slate-400 font-bold">admin</span> / <span class="font-mono text-slate-400 font-bold">admin123</span>
+        </p>
+        <a href="/" class="inline-block mt-3 text-xs text-blue-400 hover:text-blue-300 font-semibold">
+          ← Back to Public Website
+        </a>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- 2. ADMIN DASHBOARD VIEW (Shown once authenticated)                        -->
+  <!-- ========================================================================= -->
+  <div id="adminDashboardView" class="hidden min-h-screen">
+    
+    <!-- Top Navigation Header -->
+    <header class="sticky top-0 z-40 border-b border-slate-800 bg-slate-900/80 backdrop-blur-md">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        
+        <!-- Logo & Title -->
+        <div class="flex items-center space-x-3">
+          <a href="/admin" class="flex items-center space-x-2.5">
+            <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-lg shadow-md shadow-blue-500/20">
+              🚂
+            </div>
+            <div>
+              <div class="flex items-center space-x-2">
+                <span class="font-extrabold text-base tracking-tight text-white">Phatak Punjab</span>
+                <span class="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-md">
+                  Admin
+                </span>
+              </div>
+              <p class="text-[10px] text-slate-400">Live User Analytics & Dashboard</p>
+            </div>
+          </a>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex items-center space-x-3 sm:space-x-4">
+          
+          <!-- Admin User Badge -->
+          <div class="hidden sm:flex items-center space-x-2 px-3 py-1 rounded-lg bg-slate-800 border border-slate-700 text-xs font-mono text-slate-300">
+            <span>👤</span>
+            <span id="navAdminUsername" class="font-bold text-white">admin</span>
           </div>
+
+          <!-- Refresh Button -->
+          <button 
+            onclick="fetchAdminData(true)" 
+            id="refreshBtn"
+            class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-all flex items-center space-x-1.5 border border-slate-700"
+            title="Refresh database records"
+          >
+            <svg id="refreshIcon" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            <span id="refreshText">Refresh</span>
+          </button>
+
+          <!-- Logout Button -->
+          <button 
+            onclick="handleAdminLogout()" 
+            class="px-3.5 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs font-bold transition-all flex items-center space-x-1.5"
+            title="Sign out of Admin Portal"
+          >
+            <span>🚪</span>
+            <span>Logout</span>
+          </button>
+
+          <!-- Back to Public Site -->
+          <a 
+            href="/" 
+            class="hidden md:flex px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-all items-center space-x-1"
+          >
+            <span>Public Site</span>
+            <span>→</span>
+          </a>
+        </div>
+
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      
+      <!-- Top Title & Sync Info -->
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h2 class="text-2xl font-extrabold text-white tracking-tight">Registered Users Intelligence</h2>
+          <p class="text-xs text-slate-400 mt-0.5">Real database registrations with verified mobile numbers and live location share.</p>
+        </div>
+        <div class="flex items-center space-x-2 text-xs font-mono text-slate-400 bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-800 self-start sm:self-auto">
+          <span>Last Synced:</span>
+          <span id="lastSyncedTime" class="text-blue-400 font-bold">Just now</span>
+        </div>
+      </div>
+
+      <!-- ===================================================================== -->
+      <!-- KPI Metric Cards (Light & Minimalist)                                  -->
+      <!-- ===================================================================== -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+        
+        <!-- Total Users (Real) -->
+        <div class="glass-card rounded-2xl p-5 border border-slate-800">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Total Registered Users</span>
+            <div class="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center text-xs font-bold">👥</div>
+          </div>
+          <div class="flex items-baseline space-x-2">
+            <span id="kpiTotalUsers" class="text-3xl font-extrabold font-mono text-white">0</span>
+            <span class="text-xs font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md">Real Data</span>
+          </div>
+          <p class="text-[11px] text-slate-400 mt-2">Verified users registered in SQLite</p>
+        </div>
+
+        <!-- Active Sessions -->
+        <div class="glass-card rounded-2xl p-5 border border-slate-800">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Active Device Sessions</span>
+            <div class="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-xs font-bold">📱</div>
+          </div>
+          <div class="flex items-baseline space-x-2">
+            <span id="kpiActiveSessions" class="text-3xl font-extrabold font-mono text-emerald-400">0</span>
+            <span class="text-xs font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md">Single-Device</span>
+          </div>
+          <p class="text-[11px] text-slate-400 mt-2">Currently active device tokens</p>
+        </div>
+
+        <!-- Top District Hub -->
+        <div class="glass-card rounded-2xl p-5 border border-slate-800">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Top District Hub</span>
+            <div class="w-7 h-7 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center text-xs font-bold">📍</div>
+          </div>
+          <div class="flex items-baseline space-x-2">
+            <span id="kpiTopDistrict" class="text-xl font-extrabold text-purple-300 truncate">None</span>
+            <span id="kpiTopDistrictPct" class="text-xs font-semibold text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded-md">0%</span>
+          </div>
+          <p class="text-[11px] text-slate-400 mt-2">Leading user location</p>
+        </div>
+
+      </div>
+
+      <!-- ===================================================================== -->
+      <!-- Location Pie Chart & District Share Breakdown (Real Data Only)          -->
+      <!-- ===================================================================== -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- Left: Donut / Pie Chart with Percentages -->
+        <div class="lg:col-span-6 glass-card rounded-3xl p-6 flex flex-col justify-between border border-slate-800">
           <div>
-            <div class="flex items-center space-x-2">
-              <span class="font-extrabold text-base sm:text-lg tracking-tight text-white">Phatak Punjab</span>
-              <span class="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-md">
-                Admin
+            <div class="flex items-center justify-between mb-1">
+              <h3 class="text-base font-bold text-white flex items-center space-x-2">
+                <span>📊</span>
+                <span>Location Pie Chart (% Share)</span>
+              </h3>
+              <span class="text-[11px] font-mono text-slate-400 bg-slate-800 px-2 py-0.5 rounded-md">
+                Real Data
               </span>
             </div>
-            <p class="text-[11px] text-slate-400">Master Registration & Location Intelligence</p>
+            <p class="text-xs text-slate-400 mb-4">
+              Real-time percentage share of registered users by district.
+            </p>
           </div>
-        </a>
-      </div>
 
-      <!-- Actions -->
-      <div class="flex items-center space-x-3 sm:space-x-4">
-        <!-- Live Indicator -->
-        <div class="hidden sm:flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs font-semibold text-emerald-400">
-          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-          <span>Live SQLite DB</span>
-        </div>
+          <!-- Canvas or Empty State -->
+          <div class="relative w-full max-w-xs mx-auto aspect-square flex items-center justify-center my-2">
+            <canvas id="locationPieChart"></canvas>
+            <div id="chartCenterText" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
+              <span class="text-[11px] text-slate-400 font-semibold uppercase tracking-wider">Total</span>
+              <span id="centerTotalUsers" class="text-2xl font-extrabold font-mono text-white">0</span>
+              <span class="text-[10px] text-slate-500">Users</span>
+            </div>
+          </div>
 
-        <!-- Manual Refresh Button -->
-        <button 
-          onclick="fetchAdminData(true)" 
-          id="refreshBtn"
-          class="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-all flex items-center space-x-1.5 border border-slate-700"
-          title="Refresh real-time database records"
-        >
-          <svg id="refreshIcon" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-          <span id="refreshText">Refresh</span>
-        </button>
-
-        <!-- Back to Public Site -->
-        <a 
-          href="/" 
-          class="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all flex items-center space-x-1 shadow-md shadow-blue-500/20"
-        >
-          <span>Public Site</span>
-          <span>→</span>
-        </a>
-      </div>
-
-    </div>
-  </header>
-
-  <!-- ========================================================================= -->
-  <!-- Main Admin Dashboard Container                                            -->
-  <!-- ========================================================================= -->
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-    
-    <!-- Header Greeting & Last Sync -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-      <div>
-        <h1 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-          Registered Users & Location Analytics
-        </h1>
-        <p class="text-sm text-slate-400 mt-1">
-          Real-time Punjab crossing user registrations with district-wise percentage breakdown.
-        </p>
-      </div>
-
-      <!-- Sync Info Pill -->
-      <div class="flex items-center space-x-2 text-xs font-mono text-slate-400 bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-800 self-start sm:self-auto">
-        <span>⏱️ Last Synced:</span>
-        <span id="lastSyncedTime" class="text-blue-400 font-bold">Just now</span>
-      </div>
-    </div>
-
-    <!-- ======================================================================= -->
-    <!-- 1. KPI Metric Cards                                                     -->
-    <!-- ======================================================================= -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-      
-      <!-- Total Users -->
-      <div class="glass-card glass-card-hover rounded-2xl p-5 relative overflow-hidden">
-        <div class="flex items-center justify-between mb-3">
-          <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Total Registered</span>
-          <div class="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center text-sm font-bold">
-            👥
+          <!-- Empty State Alert if 0 users -->
+          <div id="chartEmptyState" class="hidden text-center py-6">
+            <p class="text-xs text-slate-400">No user registrations yet. As users register via the mobile app, their location slice will appear here.</p>
           </div>
         </div>
-        <div class="flex items-baseline space-x-2">
-          <span id="kpiTotalUsers" class="text-3xl sm:text-4xl font-extrabold font-mono text-white">--</span>
-          <span class="text-xs font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md">Verified</span>
-        </div>
-        <p class="text-xs text-slate-400 mt-2">Active mobile numbers in database</p>
-      </div>
 
-      <!-- Active Device Sessions -->
-      <div class="glass-card glass-card-hover rounded-2xl p-5 relative overflow-hidden">
-        <div class="flex items-center justify-between mb-3">
-          <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Active Devices</span>
-          <div class="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-sm font-bold">
-            📱
-          </div>
-        </div>
-        <div class="flex items-baseline space-x-2">
-          <span id="kpiActiveSessions" class="text-3xl sm:text-4xl font-extrabold font-mono text-emerald-400">--</span>
-          <span class="text-xs font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md">Single-Device</span>
-        </div>
-        <p class="text-xs text-slate-400 mt-2">Live sessions with active tokens</p>
-      </div>
-
-      <!-- Top District Hub -->
-      <div class="glass-card glass-card-hover rounded-2xl p-5 relative overflow-hidden">
-        <div class="flex items-center justify-between mb-3">
-          <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Top District Hub</span>
-          <div class="w-8 h-8 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center text-sm font-bold">
-            📍
-          </div>
-        </div>
-        <div class="flex items-baseline space-x-2">
-          <span id="kpiTopDistrict" class="text-xl sm:text-2xl font-extrabold text-purple-300 truncate">--</span>
-          <span id="kpiTopDistrictPct" class="text-xs font-semibold text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded-md">--%</span>
-        </div>
-        <p class="text-xs text-slate-400 mt-2">Highest user concentration</p>
-      </div>
-
-      <!-- Protection Status -->
-      <div class="glass-card glass-card-hover rounded-2xl p-5 relative overflow-hidden">
-        <div class="flex items-center justify-between mb-3">
-          <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Session Policy</span>
-          <div class="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center text-sm font-bold">
-            🛡️
-          </div>
-        </div>
-        <div class="flex items-baseline space-x-2">
-          <span class="text-lg sm:text-xl font-extrabold text-amber-300">Strict Single-Device</span>
-        </div>
-        <p class="text-xs text-slate-400 mt-2">Auto-kick previous login on duplicate</p>
-      </div>
-
-    </div>
-
-    <!-- ======================================================================= -->
-    <!-- 2. Location Distribution (Pie Chart & District Progress Bars)           -->
-    <!-- ======================================================================= -->
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-      
-      <!-- Left: Interactive Pie / Donut Chart with Percentages -->
-      <div class="lg:col-span-6 glass-card rounded-3xl p-6 sm:p-7 flex flex-col justify-between">
-        <div>
-          <div class="flex items-center justify-between mb-2">
-            <h2 class="text-lg font-bold text-white flex items-center space-x-2">
-              <span>📊</span>
-              <span>User Location Distribution</span>
-            </h2>
-            <span class="text-xs font-mono text-slate-400 bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-700">
-              Live % Calculation
+        <!-- Right: District Share Breakdown with Real Percentages -->
+        <div class="lg:col-span-6 glass-card rounded-3xl p-6 flex flex-col border border-slate-800">
+          <div class="flex items-center justify-between mb-1">
+            <h3 class="text-base font-bold text-white flex items-center space-x-2">
+              <span>🗺️</span>
+              <span>District Share Breakdown</span>
+            </h3>
+            <span id="districtCountBadge" class="text-xs font-bold text-blue-400 bg-blue-500/10 px-2.5 py-0.5 rounded-lg border border-blue-500/20">
+              0 Districts
             </span>
           </div>
-          <p class="text-xs text-slate-400 mb-6">
-            Percentage share of registered users categorized by Punjab district. Hover over slices for exact stats.
+          <p class="text-xs text-slate-400 mb-5">
+            Exact user counts and percentage breakdown by district.
           </p>
-        </div>
 
-        <!-- Canvas Container -->
-        <div class="relative w-full max-w-sm mx-auto aspect-square flex items-center justify-center my-2">
-          <canvas id="locationPieChart"></canvas>
-          <div id="chartCenterText" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
-            <span class="text-xs text-slate-400 font-semibold uppercase tracking-wider">Total</span>
-            <span id="centerTotalUsers" class="text-2xl font-extrabold font-mono text-white">--</span>
-            <span class="text-[10px] text-slate-500">Users</span>
+          <!-- List of Districts with Progress Bars -->
+          <div id="districtBreakdownList" class="space-y-3.5 flex-1 overflow-y-auto max-h-[320px] pr-1">
+            <div class="py-8 text-center text-slate-500 text-xs">
+              No registered user locations found yet.
+            </div>
           </div>
         </div>
 
-        <p class="text-[11px] text-center text-slate-400 mt-4">
-          💡 Data updates dynamically whenever a new user registers or signs in.
-        </p>
       </div>
 
-      <!-- Right: Detailed District Breakdown with Percentages -->
-      <div class="lg:col-span-6 glass-card rounded-3xl p-6 sm:p-7 flex flex-col">
-        <div class="flex items-center justify-between mb-2">
-          <h2 class="text-lg font-bold text-white flex items-center space-x-2">
-            <span>🗺️</span>
-            <span>District Share Breakdown</span>
-          </h2>
-          <span id="districtCountBadge" class="text-xs font-bold text-blue-400 bg-blue-500/10 px-2.5 py-1 rounded-lg border border-blue-500/20">
-            -- Districts
-          </span>
-        </div>
-        <p class="text-xs text-slate-400 mb-6">
-          Ranking of Punjab districts by total registered mobile user population.
-        </p>
-
-        <!-- Dynamic District Progress List -->
-        <div id="districtBreakdownList" class="space-y-4 flex-1 overflow-y-auto max-h-[360px] pr-2">
-          <!-- Populated by JavaScript -->
-          <div class="animate-pulse space-y-3">
-            <div class="h-10 bg-slate-800 rounded-xl"></div>
-            <div class="h-10 bg-slate-800 rounded-xl"></div>
-            <div class="h-10 bg-slate-800 rounded-xl"></div>
+      <!-- ===================================================================== -->
+      <!-- Registered Users Master Directory Table (Clean & Minimalist)            -->
+      <!-- ===================================================================== -->
+      <div class="glass-card rounded-3xl p-6 space-y-5 border border-slate-800">
+        
+        <!-- Header & Search Toolbar -->
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h3 class="text-base font-bold text-white flex items-center space-x-2">
+              <span>📋</span>
+              <span>Registered Users Directory</span>
+            </h3>
+            <p class="text-xs text-slate-400 mt-0.5">List of verified users currently registered in the database.</p>
           </div>
-        </div>
-      </div>
 
-    </div>
-
-    <!-- ======================================================================= -->
-    <!-- 3. Registered Users Master Directory Table                              -->
-    <!-- ======================================================================= -->
-    <div class="glass-card rounded-3xl p-6 sm:p-7 space-y-6">
-      
-      <!-- Section Header & Filter Toolbar -->
-      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h2 class="text-lg font-bold text-white flex items-center space-x-2">
-            <span>📋</span>
-            <span>Registered Users Master Directory</span>
-          </h2>
-          <p class="text-xs text-slate-400 mt-1">
-            Complete list of all mobile user accounts registered in SQLite database.
-          </p>
-        </div>
-
-        <!-- Search Bar & Counter -->
-        <div class="flex items-center space-x-3">
-          <div class="relative w-full sm:w-64">
-            <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-500">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-            </span>
+          <!-- Search Input -->
+          <div class="flex items-center space-x-3">
             <input 
               type="text" 
               id="userSearchInput" 
               oninput="filterUsersTable()" 
               placeholder="Search mobile, district..." 
-              class="w-full pl-9 pr-3.5 py-2 text-xs rounded-xl bg-slate-900 border border-slate-700 text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-mono"
+              class="w-full sm:w-60 px-3.5 py-2 text-xs rounded-xl bg-slate-900 border border-slate-700 text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-blue-500 font-mono"
             >
+            <span id="tableUserCount" class="text-xs font-mono font-bold text-slate-400 bg-slate-800 px-3 py-2 rounded-xl border border-slate-700 shrink-0">
+              0 users
+            </span>
           </div>
-          <span id="tableUserCount" class="text-xs font-mono font-bold text-slate-400 bg-slate-800 px-3 py-2 rounded-xl border border-slate-700 shrink-0">
-            -- users
-          </span>
         </div>
+
+        <!-- Table -->
+        <div class="overflow-x-auto rounded-2xl border border-slate-800">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr class="bg-slate-900/90 text-slate-400 border-b border-slate-800 uppercase tracking-wider font-bold">
+                <th class="py-3 px-4 font-mono">#ID</th>
+                <th class="py-3 px-4">Mobile Number</th>
+                <th class="py-3 px-4">District / Location</th>
+                <th class="py-3 px-4">Registered Date</th>
+                <th class="py-3 px-4">Last Login</th>
+                <th class="py-3 px-4 text-center">Session</th>
+                <th class="py-3 px-4 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody id="usersTableBody" class="divide-y divide-slate-800/60 font-medium">
+              <tr>
+                <td colspan="7" class="py-8 text-center text-slate-500">
+                  Loading registered users...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
       </div>
 
-      <!-- Users Table -->
-      <div class="overflow-x-auto rounded-2xl border border-slate-800">
-        <table class="w-full text-left text-xs border-collapse">
-          <thead>
-            <tr class="bg-slate-900/90 text-slate-400 border-b border-slate-800 uppercase tracking-wider font-bold">
-              <th class="py-3.5 px-4 font-mono">#ID</th>
-              <th class="py-3.5 px-4">Mobile Number</th>
-              <th class="py-3.5 px-4">District / City</th>
-              <th class="py-3.5 px-4">Registered Date</th>
-              <th class="py-3.5 px-4">Last Login</th>
-              <th class="py-3.5 px-4 text-center">Device Session</th>
-              <th class="py-3.5 px-4 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody id="usersTableBody" class="divide-y divide-slate-800/60 font-medium">
-            <!-- Populated dynamically by JavaScript -->
-            <tr>
-              <td colspan="7" class="py-8 text-center text-slate-500">
-                Loading registered user database...
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+    </main>
 
-    </div>
-
-  </main>
+  </div>
 
   <!-- ========================================================================= -->
   <!-- Admin Client Script                                                       -->
   <!-- ========================================================================= -->
   <script>
+    const ADMIN_TOKEN_KEY = 'phatak_admin_token';
+    const ADMIN_USER_KEY = 'phatak_admin_username';
     let allUsersData = [];
     let locationPieChartInstance = null;
-    
-    // Vibrant Color Palette for Districts
+
     const DISTRICT_COLORS = [
       { bg: '#3B82F6', text: '#93C5FD' }, // Blue
       { bg: '#10B981', text: '#6EE7B7' }, // Emerald
@@ -327,17 +384,105 @@
       { bg: '#14B8A6', text: '#5EEAD4' }, // Teal
       { bg: '#F97316', text: '#FDBA74' }, // Orange
       { bg: '#6366F1', text: '#A5B4FC' }, // Indigo
-      { bg: '#84CC16', text: '#BEF264' }, // Lime
     ];
 
-    document.addEventListener('DOMContentLoaded', () => {
-      fetchAdminData();
-      // Auto-refresh every 12 seconds for real-time monitoring
-      setInterval(() => fetchAdminData(false), 12000);
+    // On Load: Check if Admin Token already saved in browser
+    document.addEventListener('DOMContentLoaded', async () => {
+      const token = localStorage.getItem(ADMIN_TOKEN_KEY);
+      if (token) {
+        try {
+          const res = await fetch('/apis/admin/verify', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            showDashboardView(data.username || 'admin');
+            return;
+          }
+        } catch (e) {
+          console.warn('Admin token verify failed:', e);
+        }
+        localStorage.removeItem(ADMIN_TOKEN_KEY);
+      }
+
+      showLoginView();
     });
 
+    function showLoginView() {
+      document.getElementById('adminLoginView').classList.remove('hidden');
+      document.getElementById('adminDashboardView').classList.add('hidden');
+    }
+
+    function showDashboardView(username) {
+      document.getElementById('adminLoginView').classList.add('hidden');
+      document.getElementById('adminDashboardView').classList.remove('hidden');
+      document.getElementById('navAdminUsername').textContent = username || 'admin';
+      fetchAdminData();
+    }
+
+    // 1. Admin Login Handler
+    async function handleAdminLogin(event) {
+      event.preventDefault();
+      const username = document.getElementById('adminUsername').value.trim();
+      const password = document.getElementById('adminPassword').value.trim();
+      const loginError = document.getElementById('loginError');
+      const loginErrorText = document.getElementById('loginErrorText');
+      const loginBtn = document.getElementById('loginBtn');
+      const loginBtnText = document.getElementById('loginBtnText');
+      const loginSpinner = document.getElementById('loginSpinner');
+
+      loginError.classList.add('hidden');
+      loginBtn.disabled = true;
+      loginBtnText.textContent = 'Authenticating...';
+      loginSpinner.classList.remove('hidden');
+
+      try {
+        const res = await fetch('/apis/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.detail || 'Invalid username or password.');
+        }
+
+        // Save admin session in browser localStorage
+        localStorage.setItem(ADMIN_TOKEN_KEY, data.token);
+        localStorage.setItem(ADMIN_USER_KEY, data.username);
+
+        // Transition to dashboard view
+        showDashboardView(data.username);
+
+      } catch (err) {
+        loginErrorText.textContent = err.message || 'Login failed.';
+        loginError.classList.remove('hidden');
+      } finally {
+        loginBtn.disabled = false;
+        loginBtnText.textContent = 'Sign In as Admin →';
+        loginSpinner.classList.add('hidden');
+      }
+    }
+
+    // 2. Admin Logout Handler
+    function handleAdminLogout() {
+      if (confirm('Are you sure you want to log out of the Admin Portal?')) {
+        localStorage.removeItem(ADMIN_TOKEN_KEY);
+        localStorage.removeItem(ADMIN_USER_KEY);
+        if (locationPieChartInstance) {
+          locationPieChartInstance.destroy();
+          locationPieChartInstance = null;
+        }
+        showLoginView();
+      }
+    }
+
+    // 3. Fetch Real Admin Stats from Server
     async function fetchAdminData(isManual = false) {
-      const refreshBtn = document.getElementById('refreshBtn');
+      const token = localStorage.getItem(ADMIN_TOKEN_KEY);
+      if (!token) return;
+
       const refreshIcon = document.getElementById('refreshIcon');
       const refreshText = document.getElementById('refreshText');
 
@@ -347,8 +492,16 @@
       }
 
       try {
-        const res = await fetch('/apis/admin/stats');
-        if (!res.ok) throw new Error('Failed to load admin stats');
+        const res = await fetch('/apis/admin/stats', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (res.status === 401) {
+          handleAdminLogout();
+          return;
+        }
+
+        if (!res.ok) throw new Error('Failed to fetch admin stats');
 
         const data = await res.json();
         allUsersData = data.users || [];
@@ -362,21 +515,22 @@
           const top = data.location_distribution[0];
           document.getElementById('kpiTopDistrict').textContent = top.district;
           document.getElementById('kpiTopDistrictPct').textContent = `${top.percentage}%`;
-          document.getElementById('districtCountBadge').textContent = `${data.location_distribution.length} Districts`;
+          document.getElementById('districtCountBadge').textContent = `${data.location_distribution.length} ${data.location_distribution.length === 1 ? 'District' : 'Districts'}`;
         } else {
           document.getElementById('kpiTopDistrict').textContent = 'None';
           document.getElementById('kpiTopDistrictPct').textContent = '0%';
+          document.getElementById('districtCountBadge').textContent = '0 Districts';
         }
 
         document.getElementById('lastSyncedTime').textContent = new Date().toLocaleTimeString();
 
-        // Render Pie Chart with Percentages
+        // Render Real Location Pie Chart
         renderLocationPieChart(data.location_distribution || []);
 
-        // Render District Breakdown Bars
-        renderDistrictBreakdown(data.location_distribution || [], data.total_users || 1);
+        // Render District Share Breakdown
+        renderDistrictBreakdown(data.location_distribution || [], data.total_users || 0);
 
-        // Render Users Directory Table
+        // Render Registered Users Table
         renderUsersTable(allUsersData);
 
       } catch (err) {
@@ -391,10 +545,27 @@
       }
     }
 
-    // Render Chart.js Donut/Pie Chart with slice percentages
+    // Render Pie Chart with Real Data Only
     function renderLocationPieChart(locations) {
       const canvas = document.getElementById('locationPieChart');
+      const centerText = document.getElementById('chartCenterText');
+      const emptyState = document.getElementById('chartEmptyState');
       if (!canvas) return;
+
+      if (!locations || locations.length === 0) {
+        if (locationPieChartInstance) {
+          locationPieChartInstance.destroy();
+          locationPieChartInstance = null;
+        }
+        canvas.classList.add('hidden');
+        centerText.classList.add('hidden');
+        emptyState.classList.remove('hidden');
+        return;
+      }
+
+      canvas.classList.remove('hidden');
+      centerText.classList.remove('hidden');
+      emptyState.classList.add('hidden');
 
       const labels = locations.map(l => l.district);
       const counts = locations.map(l => l.count);
@@ -413,7 +584,7 @@
           datasets: [{
             data: counts,
             backgroundColor: bgColors,
-            borderColor: '#0f172a',
+            borderColor: '#0b0f19',
             borderWidth: 3,
             hoverOffset: 6
           }]
@@ -423,23 +594,20 @@
           maintainAspectRatio: false,
           cutout: '70%',
           plugins: {
-            legend: {
-              display: false // Displayed in the adjacent breakdown card
-            },
+            legend: { display: false },
             tooltip: {
               backgroundColor: '#1e293b',
               titleColor: '#f8fafc',
               bodyColor: '#cbd5e1',
               borderColor: '#334155',
               borderWidth: 1,
-              padding: 12,
-              boxPadding: 6,
+              padding: 10,
               callbacks: {
                 label: function(context) {
                   const label = context.label || '';
                   const value = context.raw || 0;
                   const pct = percentages[context.dataIndex] || 0;
-                  return ` ${label}: ${value} users (${pct}%)`;
+                  return ` ${label}: ${value} (${pct}%)`;
                 }
               }
             }
@@ -448,7 +616,7 @@
       });
     }
 
-    // Render Detailed District Progress Bars with %
+    // Render Real District Share Breakdown
     function renderDistrictBreakdown(locations, totalUsers) {
       const listContainer = document.getElementById('districtBreakdownList');
       if (!listContainer) return;
@@ -456,7 +624,7 @@
       if (!locations || locations.length === 0) {
         listContainer.innerHTML = `
           <div class="py-8 text-center text-slate-500 text-xs">
-            No district registration data recorded yet.
+            No registered users recorded in database yet.
           </div>
         `;
         return;
@@ -465,10 +633,10 @@
       listContainer.innerHTML = locations.map((loc, idx) => {
         const color = DISTRICT_COLORS[idx % DISTRICT_COLORS.length];
         return `
-          <div class="p-3 rounded-xl bg-slate-900/80 border border-slate-800/80 hover:border-slate-700 transition-all">
+          <div class="p-3 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-slate-700 transition-all">
             <div class="flex items-center justify-between text-xs mb-1.5">
               <div class="flex items-center space-x-2">
-                <span class="w-3 h-3 rounded-full shrink-0" style="background-color: ${color.bg}"></span>
+                <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: ${color.bg}"></span>
                 <span class="font-bold text-slate-200">${loc.district}</span>
               </div>
               <div class="flex items-center space-x-2">
@@ -479,7 +647,6 @@
               </div>
             </div>
             
-            <!-- Percentage Progress Bar -->
             <div class="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
               <div class="h-1.5 rounded-full transition-all duration-500" style="width: ${loc.percentage}%; background-color: ${color.bg}"></div>
             </div>
@@ -488,7 +655,7 @@
       }).join('');
     }
 
-    // Render Users Table
+    // Render Users Table (Real Data)
     function renderUsersTable(users) {
       const tbody = document.getElementById('usersTableBody');
       const countBadge = document.getElementById('tableUserCount');
@@ -499,8 +666,8 @@
       if (!users || users.length === 0) {
         tbody.innerHTML = `
           <tr>
-            <td colspan="7" class="py-8 text-center text-slate-500">
-              No registered users found in database.
+            <td colspan="7" class="py-8 text-center text-slate-500 text-xs">
+              No registered user accounts found in the database.
             </td>
           </tr>
         `;
@@ -519,13 +686,13 @@
         }) : '--';
 
         const sessionBadge = u.is_active ? `
-          <span class="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[11px] font-semibold">
+          <span class="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[10px] font-semibold">
             <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
             <span>Active Device</span>
           </span>
         ` : `
-          <span class="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full bg-slate-800 text-slate-400 border border-slate-700 text-[11px]">
-            <span>Idle / Logged Out</span>
+          <span class="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700 text-[10px]">
+            <span>Idle</span>
           </span>
         `;
 
@@ -536,9 +703,9 @@
               <span class="font-mono font-bold text-white tracking-wide">${u.mobile}</span>
             </td>
             <td class="py-3 px-4">
-              <span class="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-md bg-blue-500/10 text-blue-300 border border-blue-500/20 font-semibold">
+              <span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-300 border border-blue-500/20 font-semibold text-[11px]">
                 <span>📍</span>
-                <span>${u.district || 'Punjab'}</span>
+                <span>${u.district || 'Unassigned'}</span>
               </span>
             </td>
             <td class="py-3 px-4 text-slate-400 text-[11px]">${createdStr}</td>
@@ -547,7 +714,7 @@
             <td class="py-3 px-4 text-right">
               <button 
                 onclick="handleDeleteUser(${u.id}, '${u.mobile}')" 
-                class="px-2.5 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 text-[11px] font-bold transition-all"
+                class="px-2 py-0.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 text-[11px] font-bold transition-all"
                 title="Remove user"
               >
                 Delete
@@ -558,7 +725,7 @@
       }).join('');
     }
 
-    // Filter Table by Search Query
+    // Filter Users Table
     function filterUsersTable() {
       const q = (document.getElementById('userSearchInput')?.value || '').toLowerCase().trim();
       if (!q) {
@@ -576,13 +743,15 @@
       renderUsersTable(filtered);
     }
 
-    // Delete User Handler
+    // Delete User
     async function handleDeleteUser(userId, mobile) {
-      if (!confirm(`Are you sure you want to remove user #${userId} (${mobile})?`)) return;
+      if (!confirm(`Are you sure you want to delete user #${userId} (${mobile})?`)) return;
 
+      const token = localStorage.getItem(ADMIN_TOKEN_KEY);
       try {
         const res = await fetch(`/apis/admin/users/${userId}`, {
-          method: 'DELETE'
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) {
           fetchAdminData(true);

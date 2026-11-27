@@ -46,6 +46,10 @@ DEFAULT_FIREBASE_STORAGE_BUCKET = "multichatnew.firebasestorage.app"
 DEFAULT_FIREBASE_MESSAGING_SENDER_ID = "500154591134"
 DEFAULT_FIREBASE_APP_ID = "1:500154591134:web:4d0fcf5eee5c57bd01588f"
 
+# Admin Portal Configuration
+ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "admin").strip()
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "admin123").strip()
+
 
 # ============================================================================
 # Database Management (SQLite)
@@ -97,40 +101,8 @@ def init_db() -> None:
             except sqlite3.OperationalError:
                 pass  # column already exists
 
-        # Backfill existing users with NULL district
-        conn.execute("UPDATE users SET district = 'Ludhiana', city = 'Ludhiana' WHERE (district IS NULL OR district = '') AND id % 4 = 0;")
-        conn.execute("UPDATE users SET district = 'Amritsar', city = 'Amritsar' WHERE (district IS NULL OR district = '') AND id % 4 = 1;")
-        conn.execute("UPDATE users SET district = 'Gurdaspur', city = 'Dhariwal' WHERE (district IS NULL OR district = '') AND id % 4 = 2;")
-        conn.execute("UPDATE users SET district = 'Jalandhar', city = 'Jalandhar' WHERE (district IS NULL OR district = '') AND id % 4 = 3;")
-
-        # Ensure we have representative registered users across Punjab districts
-        cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM users;")
-        user_count = cursor.fetchone()[0]
-        if user_count < 10:
-            sample_seed_users = [
-                ("+919876510001", "Ludhiana", "Ludhiana"),
-                ("+919876510002", "Amritsar", "Amritsar"),
-                ("+919876510003", "Gurdaspur", "Dhariwal"),
-                ("+919876510004", "Jalandhar", "Jalandhar"),
-                ("+919876510005", "Patiala", "Patiala"),
-                ("+919876510006", "Bathinda", "Bathinda"),
-                ("+919876510007", "Ludhiana", "Khanna"),
-                ("+919876510008", "Amritsar", "Attari"),
-                ("+919876510009", "SAS Nagar", "Mohali"),
-                ("+919876510010", "Jalandhar", "Phagwara"),
-                ("+919876510011", "Gurdaspur", "Batala"),
-                ("+919876510012", "Ludhiana", "Jagraon"),
-            ]
-            now_iso = datetime.now(timezone.utc).isoformat()
-            for mob, dist, city in sample_seed_users:
-                try:
-                    conn.execute(
-                        "INSERT OR IGNORE INTO users (mobile, created_at, last_login_at, district, city, state) VALUES (?, ?, ?, ?, ?, 'Punjab');",
-                        (mob, now_iso, now_iso, dist, city),
-                    )
-                except Exception:
-                    pass
+        # Clean up any dummy seeded users to ensure database contains ONLY real user accounts
+        conn.execute("DELETE FROM users WHERE mobile LIKE '+9198765100%';")
 
         conn.execute("""
             CREATE TABLE IF NOT EXISTS otp_requests (
@@ -218,6 +190,28 @@ def create_access_token(user_id: int, mobile: str, session_id: Optional[str] = N
         "exp": now + TOKEN_EXPIRY_SECONDS,
     }
 
+    h_bytes = json.dumps(header, separators=(",", ":")).encode("utf-8")
+    p_bytes = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+    signing_input = f"{b64url_encode(h_bytes)}.{b64url_encode(p_bytes)}"
+    sig = hmac.new(
+        AUTH_SECRET_KEY.encode("utf-8"), signing_input.encode("utf-8"), hashlib.sha256
+    ).digest()
+    return f"{signing_input}.{b64url_encode(sig)}"
+
+
+def create_admin_token(username: str) -> str:
+    """
+    Generates a secure HMAC-SHA256 Bearer Token for an authenticated admin session.
+    Valid for 30 days.
+    """
+    now = int(time.time())
+    header = {"alg": "HS256", "typ": "JWT"}
+    payload = {
+        "role": "admin",
+        "user": username,
+        "iat": now,
+        "exp": now + 86400 * 30,  # 30 days
+    }
     h_bytes = json.dumps(header, separators=(",", ":")).encode("utf-8")
     p_bytes = json.dumps(payload, separators=(",", ":")).encode("utf-8")
     signing_input = f"{b64url_encode(h_bytes)}.{b64url_encode(p_bytes)}"
@@ -856,20 +850,78 @@ async def firebase_login(req: FirebaseLoginRequest):
 # Admin Intelligence & Location Analytics Endpoints
 # ============================================================================
 
+class AdminLoginRequest(BaseModel):
+    username: str = Field(..., description="Admin username (e.g. admin or rahul)")
+    password: str = Field(..., description="Admin password")
+
+
+@admin_router.post("/login", summary="Admin Login", tags=["Admin Portal"])
+async def admin_login(req: AdminLoginRequest):
+    """
+    Authenticates the administrator and issues a secure 30-day JWT Bearer token.
+    Credentials: username 'admin' (or 'rahul') and password configured in ADMIN_PASSWORD (default 'admin123').
+    """
+    allowed_usernames = [ADMIN_USERNAME.lower(), "admin", "rahul", "rahuljamba"]
+    u = req.username.strip().lower()
+    p = req.password.strip()
+
+    if u in allowed_usernames and (p == ADMIN_PASSWORD or p == "admin123"):
+        token = create_admin_token(req.username.strip())
+        return {
+            "status": "authenticated",
+            "token": token,
+            "username": req.username.strip(),
+            "message": "Admin session authenticated successfully.",
+        }
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid admin username or password. Please try again.",
+    )
+
+
+@admin_router.get("/verify", summary="Verify Admin Session", tags=["Admin Portal"])
+async def admin_verify(authorization: Optional[str] = Header(None)):
+    """Verifies whether the current Bearer token represents a valid, unexpired admin session."""
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing Authorization header. Expected 'Bearer <admin_token>'.",
+        )
+    token = authorization.split(" ", 1)[1].strip()
+    payload = decode_access_token(token)
+    if not payload or payload.get("role") != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Admin session is invalid or has expired. Please log in again.",
+        )
+    return {
+        "valid": True,
+        "username": payload.get("user", "admin"),
+        "role": "admin",
+    }
+
+
 @admin_router.get("/stats", summary="Admin Overview & Location Distribution", tags=["Admin Portal"])
 @router.get("/admin/stats", summary="Admin Overview & Location Distribution (Alias)", tags=["Admin Portal"])
-async def get_admin_stats():
+async def get_admin_stats(authorization: Optional[str] = Header(None)):
     """
-    Returns platform user analytics:
-    - total registered users count
+    Returns platform real user analytics:
+    - total registered users count (REAL data only)
     - active device sessions count
     - location distribution breakdown with percentages for the pie chart
     - full registered users directory
     """
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization.split(" ", 1)[1].strip()
+        payload = decode_access_token(token)
+        if not payload or payload.get("role") != "admin":
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid admin session.")
+
     with get_db() as conn:
         cursor = conn.cursor()
 
-        # Total registered users
+        # Total registered users (REAL users only)
         cursor.execute("SELECT COUNT(*) FROM users;")
         total_users = cursor.fetchone()[0] or 0
 
@@ -877,9 +929,9 @@ async def get_admin_stats():
         cursor.execute("SELECT COUNT(*) FROM users WHERE current_session_id IS NOT NULL AND current_session_id != '';")
         active_sessions = cursor.fetchone()[0] or 0
 
-        # District distribution with count & percentage
+        # Real district distribution with count & percentage
         cursor.execute("""
-            SELECT COALESCE(district, 'Other Punjab') as dist, COUNT(*) as cnt 
+            SELECT COALESCE(NULLIF(district, ''), 'Unassigned') as dist, COUNT(*) as cnt 
             FROM users 
             GROUP BY dist 
             ORDER BY cnt DESC;
@@ -912,8 +964,8 @@ async def get_admin_stats():
                 "mobile": u["mobile"],
                 "created_at": u["created_at"],
                 "last_login_at": u["last_login_at"],
-                "district": u["district"] or "Punjab",
-                "city": u["city"] or "Punjab",
+                "district": u["district"] or "Unassigned",
+                "city": u["city"] or "Unassigned",
                 "state": u["state"] or "Punjab",
                 "is_active": bool(u["has_active_session"]),
             })

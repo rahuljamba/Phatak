@@ -307,7 +307,42 @@ def send_fast2sms_otp(mobile_10_digits: str, otp: str) -> tuple:
         except Exception as e:
             logger.warning(f"Fast2SMS Smart OTP attempt failed: {e}")
 
-    # 2. Quick OTP route (bulkV2 route="otp")
+    # 2. Try Quick SMS route (bulkV2 route="q" - direct without DLT)
+    try:
+        url = "https://www.fast2sms.com/dev/bulkV2"
+        payload_q = {
+            "route": "q",
+            "message": f"Your Phatak Punjab verification OTP is {otp}. Valid for 5 minutes.",
+            "numbers": clean_digits,
+        }
+        req = urllib.request.Request(
+            url,
+            data=json.dumps(payload_q).encode("utf-8"),
+            headers={
+                "authorization": api_key,
+                "Content-Type": "application/json",
+            },
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=8.0) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            logger.info(f"Fast2SMS route=q response for {clean_digits}: {data}")
+            if data.get("return") is True:
+                return True, "OTP successfully delivered via Fast2SMS."
+    except urllib.error.HTTPError as e:
+        try:
+            err_body = json.loads(e.read().decode("utf-8"))
+            msg_q = err_body.get("message", "")
+        except Exception:
+            msg_q = str(e)
+        logger.warning(f"Fast2SMS route=q status: {msg_q}")
+        # If transaction threshold required, return clear explanation
+        if "100 INR" in msg_q:
+            return False, "Fast2SMS API requires completing one transaction of ₹100 to unlock live SMS (current wallet: ₹50)."
+    except Exception as e:
+        logger.warning(f"Fast2SMS route=q connection error: {e}")
+
+    # 3. Quick OTP route fallback (bulkV2 route="otp")
     try:
         url = "https://www.fast2sms.com/dev/bulkV2"
         payload = {

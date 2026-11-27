@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: phatak-punjab
+    name: phatak
     runtime: python
     plan: free
     region: oregon
